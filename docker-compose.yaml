@@ -1,0 +1,107 @@
+version: '3.8'
+
+x-function: &python
+  volumes:
+    - ./app:/app:rw
+    - poetry-volume:/opt/poetry:delegated
+  user: "${USER_ID}"
+  environment: &env-vars
+    POETRY_HOME: /opt/poetry
+  networks:
+    - internal
+  depends_on:
+    - app_db
+    - rabbitmq
+    - redis
+  env_file:
+    .env
+
+
+x-celery: &base_celery
+  <<: *python
+  build:
+    context: .
+    dockerfile: backend.dockerfile
+  entrypoint: celery
+  links:
+    - redis
+    - rabbitmq
+  networks:
+    - internal
+
+services:
+
+  app_db:
+    container_name: ${PROJECT_SLUG}_db
+    image: postgres:11
+    volumes:
+      - app_db-template:/var/lib/postgresql/data/pgdata:rw
+    env_file:
+      - .env
+    networks:
+      - internal
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: trust
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+  app:
+    <<: *python
+    container_name: ${PROJECT_SLUG}_app
+    build:
+      context: .
+      dockerfile: backend.dockerfile
+    command: >
+      python app/main.py
+    env_file:
+      - .env
+
+  rabbitmq:
+    image: rabbitmq:management
+    hostname: rabbitmq
+    container_name: ${PROJECT_SLUG}_rabbitmq
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
+    networks:
+      - internal
+    env_file:
+      - .env
+    restart: always
+
+  redis:
+    image: redis:7.0.11-alpine
+    hostname: redis
+    container_name: ${PROJECT_SLUG}_redis
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    networks:
+      - internal
+    env_file:
+      - .env
+    restart: always
+
+
+  worker:
+    <<: *base_celery
+    hostname: worker
+    container_name: ${PROJECT_SLUG}_worker
+    command: >
+      -A app.core.celery worker -l info -P gevent
+    restart: always
+
+
+volumes:
+  app_db-template:
+  poetry-volume:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  internal:
