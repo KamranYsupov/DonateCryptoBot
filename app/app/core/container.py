@@ -19,6 +19,7 @@ from app.services.donate_confirm_service import DonateConfirmService
 from app.services.telegram_user_service import TelegramUserService
 from app.services.matrix_service import MatrixService
 from app.services.donate_service import DonateService
+from app.services.crypto_bot_api_service import CryptoBotAPIService
 
 
 class Container(containers.DeclarativeContainer):
@@ -29,6 +30,7 @@ class Container(containers.DeclarativeContainer):
             "app.handlers.info",
             "app.handlers.ban_user",
             "app.handlers.referral_message",
+            "app.handlers.payments",
             "app.middlewares.ban_user",
             "app.middlewares.subscriptions",
             "app.tasks.donate",
@@ -36,29 +38,29 @@ class Container(containers.DeclarativeContainer):
         ]
     )
 
-    config = providers.Singleton(Settings)
+    config = providers.Factory(Settings)
     db = providers.Singleton(SyncSession, db_url=config.provided.postgres_url)
     session = providers.Factory(db().create_session)
 
     # region repository
-    repository_telegram_user = providers.Singleton(
+    repository_telegram_user = providers.Factory(
         RepositoryTelegramUser, model=TelegramUser, session=session
     )
-    repository_admin_user = providers.Singleton(
+    repository_admin_user = providers.Factory(
         RepositoryAdminUser, model=AdminUser, session=session
     )
-    repository_matrix = providers.Singleton(
+    repository_matrix = providers.Factory(
         RepositoryMatrix, model=Matrix, session=session
     )
-    repository_wallet_recharge = providers.Singleton(
+    repository_wallet_recharge = providers.Factory(
         RepositoryTransaction, model=Transaction, session=session
     )
-    repository_donate = providers.Singleton(
+    repository_donate = providers.Factory(
         RepositoryDonate,
         model=Donate,
         session=session,
     )
-    repository_donate_transaction = providers.Singleton(
+    repository_donate_transaction = providers.Factory(
         RepositoryDonateTransaction,
         model=DonateTransaction,
         session=session,
@@ -66,24 +68,29 @@ class Container(containers.DeclarativeContainer):
     # endregion
 
     # region services
-    telegram_user_service = providers.Singleton(
+    telegram_user_service = providers.Factory(
         TelegramUserService, repository_telegram_user=repository_telegram_user
     )
-    matrix_service = providers.Singleton(
+    matrix_service = providers.Factory(
         MatrixService,
         repository_matrix=repository_matrix,
         repository_telegram_user=repository_telegram_user,
     )
-    donate_service = providers.Singleton(
+    donate_service = providers.Factory(
         DonateService,
         repository_telegram_user=repository_telegram_user,
         repository_matrix=repository_matrix,
         repository_donate=repository_donate,
     )
-    donate_confirm_service = providers.Singleton(
+    donate_confirm_service = providers.Factory(
         DonateConfirmService,
         repository_donate=repository_donate,
         repository_donate_transaction=repository_donate_transaction,
         repository_telegram_user=repository_telegram_user,
+    )
+    crypto_bot_api_service = providers.Factory(
+        CryptoBotAPIService,
+        base_url=config.provided.crypto_bot_api_base_url,
+        api_token=config.provided.crypto_bot_api_token,
     )
     # endregion

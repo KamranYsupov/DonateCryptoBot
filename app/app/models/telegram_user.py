@@ -34,7 +34,7 @@ class DonateStatus(enum.Enum):
         return {
             cls.BASE: 50,
             cls.BRONZE: 100,
-            cls.SILVER: 200,
+            cls.SILVER: 150,
         }
 
     def get_status_donate_value(

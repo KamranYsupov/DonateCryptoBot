@@ -60,10 +60,12 @@ class Settings(BaseSettings):
     redis_port: int | str = Field(title="Порт redis", default=6379)
     # endregion
 
-    # region wallet
-    token: str = Field(title="bot token for wallet")
-    manifest_url: str = Field(title="contains bot info - link, icon and name")
-    bot_wallet_address: str = Field(title="Адрес кошелька бота")
+    # region CryptoBot
+    crypto_bot_api_token: str = Field(title="CryptoBot API token")
+    crypto_bot_api_base_url: str = Field(
+        title="CryptoBot API base url",
+        default="https://pay.crypt.bot/api/",
+    )
     # endregion
 
     database_url: PostgresDsn | None = Field(title="Ссылка БД", default=None)

@@ -150,8 +150,8 @@ async def donations_menu_handler(
             f"Всего подарили: <b>${int(bills_sum)}</b>\n\n"
             f"{statuses_statistic_message}\n"
             f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
-            f"Получено подарков: "
-            f"<b>${int(current_user.bill)}</b>\n"
+            f"Количество токенов: "
+            f"<b>{int(current_user.bill)}</b>\n"
         )
         buttons = default_buttons
         admin_buttons = {
@@ -188,7 +188,7 @@ async def donations_menu_handler(
             + "\n"
               f"Мой статус: <b>{current_user.status.value}</b>\n"
               f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
-              f"Получено подарков: "
+              f"Количество токенов: "
               f"<b>{int(current_user.bill)}</b>\n"
     )
 
@@ -226,12 +226,35 @@ async def export_users_to_excel_callback_handler(
 @commit_and_close_session
 async def confirm_donate(
         callback: CallbackQuery,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
 ) -> None:
     if "🔴" in callback.data.split("_"):
         return
 
     callback_donate_data = "_".join(callback.data.split("_")[1:])
     donate_sum = callback_donate_data.split("_")[-1]
+    current_user = await telegram_user_service.get_telegram_user(
+        user_id=callback.from_user.id
+    )
+
+    need_to_buy_tokens = current_user.bill - int(donate_sum)
+    if need_to_buy_tokens < 0:
+        need_to_buy_tokens = int(abs(need_to_buy_tokens))
+        await callback.message.edit_text(
+            f"Для активации уровня нехватает {need_to_buy_tokens} токенов.",
+            reply_markup=get_donate_keyboard(
+                buttons={
+                    "Преобрести 💳": f"buy_tokens_{need_to_buy_tokens}",
+                    "🔙 Назад": f"donations",
+                },
+                sizes=(1, 1),
+            ),
+        )
+
+        return
+
 
     await callback.message.edit_text(
         text=f"Для активации уровня с вашего счета спишется <b>{donate_sum}</b> токенов.\n\n"
@@ -296,6 +319,9 @@ async def donate_handler(
         matrix_id=matrix.id,
         quantity=donate_sum,
     )
+    current_user.status = status
+    current_user.bill -= donate_sum
+
     transactions = await donate_confirm_service.get_donate_transactions_by_donate_id(
         donate_id=donate.id
     )
@@ -314,6 +340,8 @@ async def donate_handler(
             )
         except TelegramAPIError:
             pass
+
+
 
     await callback.message.delete()
 

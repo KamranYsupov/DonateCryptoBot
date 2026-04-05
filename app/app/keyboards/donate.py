@@ -35,7 +35,7 @@ def get_donations_keyboard(
 
         return buttons
 
-    if current_status.value == DonateStatus.BRILLIANT.value:
+    if current_status.value == DonateStatus.get_status_list()[-1].value:
         for status in status_list:
             donate_sum = status.get_status_donate_value()
             button_text = \
@@ -64,12 +64,14 @@ def get_donations_keyboard(
             buttons[button_text] = \
                 f"confirm_donate_🔴_{status.get_status_donate_value()}"
 
+            donations_data = DonateStatus.get_donations_data()
+
             buttons[(
                 f"🟢{status_list[count + 1].value} - "
-                f"${DonateStatus.donations_data.get((status_list[count + 1]))}🟢"
+                f"${donations_data.get((status_list[count + 1]))}🟢"
             )] = (
                 f"confirm_donate_🟢_"
-                f"{DonateStatus.donations_data.get((status_list[count + 1]))}"
+                f"{donations_data.get((status_list[count + 1]))}"
             )
 
             for i in status_list[status_list.index(status) + 2 :]:
