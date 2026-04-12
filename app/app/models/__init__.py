@@ -3,3 +3,4 @@ from app.models.telegram_user import TelegramUser
 from app.models.matrix import Matrix
 from app.models.transaction import Transaction
 from app.models.donate import Donate, DonateTransaction
+from app.models.withdrawal_request import WithdrawalRequest

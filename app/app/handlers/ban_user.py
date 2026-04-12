@@ -51,7 +51,7 @@ async def process_name(
     )
     error_buttons = {
         "Попробовать ещё раз 🔄": "ban_user",
-        "🔙 Назад": "donations_b",
+        "🔙 Назад": "donations",
     }
     async def send_error_message(error_message: str):
         await message.answer(
@@ -87,7 +87,7 @@ async def process_name(
         reply_markup=get_donate_keyboard(
             buttons={
                 "Да": f"confirm_ban_{telegram_user.user_id}",
-                "Нет": "donations_b",
+                "Нет": "donations",
             },
             sizes=(1, 1)
         )
@@ -133,7 +133,7 @@ async def banned_users_handler(
         ],
 ) -> None:
     page_number = int(callback.data.split("_")[-1])
-    back_button = {"🔙 Назад": "donations_b"}
+    back_button = {"🔙 Назад": "donations"}
 
     banned_users = await telegram_user_service.get_list(
         is_banned=True
@@ -190,7 +190,7 @@ async def unban_user_callback_handler(
         await callback.message.edit_text(
             f"Пользователь @{telegram_user.username} уже разблокирован.",
             reply_markup=get_donate_keyboard(
-                button={"🔙 Назад": "donations_b"},
+                button={"🔙 Назад": "donations"},
             )
         )
         return
@@ -200,7 +200,7 @@ async def unban_user_callback_handler(
         reply_markup=get_donate_keyboard(
             buttons={
                 "Да": f"confirm_unban_{telegram_user.user_id}",
-                "Нет": "donations_b",
+                "Нет": "donations",
             },
             sizes=(1, 1)
         )
@@ -210,7 +210,7 @@ async def unban_user_callback_handler(
 @ban_user_router.callback_query(F.data.startswith("confirm_unban_"))
 @inject
 @commit_and_close_session
-async def confirm_гтban_user_callback_handler(
+async def confirm_ban_user_callback_handler(
         callback: CallbackQuery,
         telegram_user_service: TelegramUserService = Provide[
             Container.telegram_user_service

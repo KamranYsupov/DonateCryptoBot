@@ -8,18 +8,21 @@ from app.repositories.telegram_user import RepositoryTelegramUser
 from app.repositories.admin_user import RepositoryAdminUser
 from app.repositories.matrix import RepositoryMatrix
 from app.repositories.transaction import RepositoryTransaction
+from app.repositories.withdrawal_request import RepositoryWithdrawalRequest
 
 from app.models.telegram_user import TelegramUser
 from app.models.admin_user import AdminUser
 from app.models.donate import Donate, DonateTransaction
 from app.models.matrix import Matrix
 from app.models.transaction import Transaction
-from app.services.donate_confirm_service import DonateConfirmService
+from app.models.withdrawal_request import WithdrawalRequest
 
+from app.services.donate_confirm_service import DonateConfirmService
 from app.services.telegram_user_service import TelegramUserService
 from app.services.matrix_service import MatrixService
 from app.services.donate_service import DonateService
 from app.services.crypto_bot_api_service import CryptoBotAPIService
+from app.services.withdrawal_request import WithdrawalRequestService
 
 
 class Container(containers.DeclarativeContainer):
@@ -31,6 +34,8 @@ class Container(containers.DeclarativeContainer):
             "app.handlers.ban_user",
             "app.handlers.referral_message",
             "app.handlers.payments",
+            "app.handlers.withdrawal_request",
+            "app.handlers.transfer",
             "app.middlewares.ban_user",
             "app.middlewares.subscriptions",
             "app.tasks.donate",
@@ -65,6 +70,9 @@ class Container(containers.DeclarativeContainer):
         model=DonateTransaction,
         session=session,
     )
+    repository_withdrawal_request = providers.Factory(
+        RepositoryWithdrawalRequest, model=WithdrawalRequest, session=session
+    )
     # endregion
 
     # region services
@@ -92,5 +100,9 @@ class Container(containers.DeclarativeContainer):
         CryptoBotAPIService,
         base_url=config.provided.crypto_bot_api_base_url,
         api_token=config.provided.crypto_bot_api_token,
+    )
+    withdrawal_request_service = providers.Factory(
+        WithdrawalRequestService,
+        repository_withdrawal_request=repository_withdrawal_request,
     )
     # endregion

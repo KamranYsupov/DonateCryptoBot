@@ -1,0 +1,317 @@
+import os
+from datetime import datetime, timedelta
+import uuid
+import json
+
+import loguru
+from aiogram import Router, F, Bot
+from aiogram.enums import ChatMemberStatus
+from aiogram.exceptions import TelegramBadRequest, TelegramAPIError
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.types import CallbackQuery, ReplyKeyboardRemove
+from aiogram.filters import Command
+from aiogram.types import Message
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from dependency_injector.wiring import inject, Provide
+
+from app.core.container import Container
+from app.services.telegram_user_service import TelegramUserService
+from app.keyboards.donate import get_donate_keyboard
+from app.core.config import settings
+from app.keyboards.donate import get_donations_keyboard
+from app.db.commit_decorator import commit_and_close_session
+from app.services.crypto_bot_api_service import CryptoBotAPIService
+from app.keyboards.reply import get_reply_keyboard, reply_cancel_keyboard
+from app.services.withdrawal_request import WithdrawalRequestService
+from app.schemas.withdrawal_request import WithdrawalRequestEntity
+from app.models.withdrawal_request import WithdrawalRequest
+from app.utils.pagination import Paginator
+from app.utils.texts import get_withdrawal_request_info_message
+
+withdrawal_requests_router = Router()
+
+
+class WithdrawalRequestState(StatesGroup):
+    wallet_address = State()
+    tokens_count = State()
+    confirm_sending = State()
+
+
+@withdrawal_requests_router.callback_query(F.data == "withdrawal_request")
+async def withdrawal_request_handler(
+        callback: CallbackQuery,
+        state: FSMContext,
+) -> None:
+    await state.set_state(WithdrawalRequestState.wallet_address)
+    await callback.message.delete()
+    await callback.message.answer(
+        "Для вывода отправьте адрес кошелька USDT в сети TON.\n\n"
+        "<b>Важно:</b> <em>при указании неверного адреса токены будут утеряны</em>.",
+        reply_markup=reply_cancel_keyboard,
+    )
+
+
+@withdrawal_requests_router.message(F.text, WithdrawalRequestState.wallet_address)
+@inject
+async def process_wallet_address(
+        message: Message,
+        state: FSMContext,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
+) -> None:
+    wallet_address = message.text
+
+    if len(wallet_address) != 48:
+        await message.answer(
+            "❌ Некорректный ввод. Длина адреса должна быть 48 символов."
+        )
+        return
+
+    await state.update_data(wallet_address=wallet_address)
+    await state.set_state(WithdrawalRequestState.tokens_count)
+
+    telegram_user = await telegram_user_service.get_telegram_user(
+        user_id=message.from_user.id
+    )
+    await message.answer(
+        f"Отправьте количесто токенов для вывода(всего <b>{int(telegram_user.bill)}</b>)."
+    )
+
+
+@withdrawal_requests_router.message(F.text, WithdrawalRequestState.tokens_count)
+@inject
+async def process_tokens_count(
+        message: Message,
+        state: FSMContext,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
+) -> None:
+
+    try:
+        tokens_count = int(message.text)
+    except ValueError:
+        await message.answer(
+            "❌ Некорректный ввод. Отправьте положительное, целое число."
+        )
+        return
+
+    if tokens_count < settings.withdrawal_min_tokens_count:
+        await message.answer(
+            f"Минимальная сумма для вывода {int(settings.withdrawal_min_tokens_count)}"
+        )
+
+    telegram_user = await telegram_user_service.get_telegram_user(
+        user_id=message.from_user.id
+    )
+
+    if tokens_count > telegram_user.bill:
+        await message.answer(
+            "❌ Некорректный ввод. Число превышает сумму на счетё."
+        )
+        return
+
+    await state.update_data(tokens_count=tokens_count)
+    await state.set_state(WithdrawalRequestState.confirm_sending)
+
+    await message.answer("✍️", reply_markup=get_reply_keyboard(telegram_user))
+    await message.answer(
+        "Вы уверены? "
+        "После создания заявки указанное число токенов спишется с вашего счета.",
+        reply_markup=get_donate_keyboard(
+            buttons={
+                "Да": f"send_withdrawal_request",
+                "Нет": "cancel",
+            },
+            sizes=(1, 1)
+        )
+    )
+
+
+@withdrawal_requests_router.callback_query(
+    F.data == "send_withdrawal_request",
+    WithdrawalRequestState.confirm_sending
+)
+@inject
+@commit_and_close_session
+async def send_withdrawal_request_handler(
+        callback: CallbackQuery,
+        state: FSMContext,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
+        withdrawal_request_service: WithdrawalRequestService = Provide[
+            Container.withdrawal_request_service
+        ],
+) -> None:
+    telegram_user = await telegram_user_service.get_telegram_user(
+        user_id=callback.from_user.id
+    )
+
+    state_data = await state.get_data()
+
+    if state_data["tokens_count"] > telegram_user.bill:
+        await callback.message.edit_text(
+            "❌ Число токенов превышает сумму на счетё.",
+        )
+        await state.clear()
+        return
+
+    await withdrawal_request_service.create_withdrawal_request(
+        WithdrawalRequestEntity(
+            telegram_user_id=telegram_user.id,
+            **state_data,
+        )
+    )
+    telegram_user.bill -= state_data["tokens_count"]
+    await state.clear()
+    await callback.message.edit_text(
+        "Заявка на вывод средств отправлена ✅. Средства поступят в течение 24 часов.",
+    )
+
+
+@withdrawal_requests_router.callback_query(F.data.startswith("withdrawal_requests_"))
+@inject
+async def withdrawal_requests_handler(
+        callback: CallbackQuery,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
+        withdrawal_request_service: WithdrawalRequestService = Provide[
+            Container.withdrawal_request_service
+        ],
+) -> None:
+    page_number = int(callback.data.split("_")[-1])
+    back_button = {"🔙 Назад": "donations"}
+
+    withdrawal_requests = await withdrawal_request_service.get_withdrawal_requests(
+        order_by=[WithdrawalRequest.is_paid.desc(), WithdrawalRequest.created_at.desc()],
+    )
+    if not withdrawal_requests:
+        await callback.message.edit_text(
+            "Список пуст.",
+            reply_markup=get_donate_keyboard(
+                buttons=back_button
+        ))
+        return
+    paginator = Paginator(
+        withdrawal_requests,
+        page_number=page_number,
+        per_page=1
+    )
+    withdrawal_request = paginator.get_page()[0]
+    withdrawal_request_user = await telegram_user_service.get_telegram_user(
+        id=withdrawal_request.telegram_user_id
+    )
+    page_message_text = get_withdrawal_request_info_message(
+        withdrawal_request,
+        withdrawal_request_user
+    )
+
+
+    buttons = {}
+
+    if paginator.has_previous():
+        buttons |= {"◀ Пред.": f"withdrawal_requests_{page_number - 1}"}
+    if paginator.has_next():
+        buttons |= {"След. ▶": f"withdrawal_requests_{page_number + 1}"}
+
+
+    buttons_len = len(buttons)
+    if buttons_len == 2:
+        sizes = (2, 1)
+    else:
+        sizes = (1, 1)
+
+    if not withdrawal_request.is_paid:
+        buttons = {
+            "Подтвердить ☑️": f"pay_withdrawal_{withdrawal_request.id}_{page_number}"
+        } | buttons
+
+        sizes = (1, ) + sizes
+
+    buttons.update(back_button)
+
+
+
+    await callback.message.edit_text(
+        page_message_text,
+        reply_markup=get_donate_keyboard(buttons=buttons, sizes=sizes),
+        parse_mode="HTML",
+    )
+
+
+
+@withdrawal_requests_router.callback_query(F.data.startswith("pay_withdrawal_"))
+@inject
+async def pay_withdrawal_callback_handler(
+        callback: CallbackQuery,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
+        withdrawal_request_service: WithdrawalRequestService = Provide[
+            Container.withdrawal_request_service
+        ],
+) -> None:
+    withdrawal_request_id, page_number = callback.data.split('_')[-2:]
+
+    await callback.message.edit_text(
+        text="<b>Вы уверенны?</b>",
+        reply_markup=get_donate_keyboard(
+            buttons={
+                "Да": f"conf_withdrawal_{withdrawal_request_id}_{page_number}",
+                "Нет": f"withdrawal_requests_{page_number}",
+            },
+            sizes=(1, 1)
+        )
+    )
+
+
+@withdrawal_requests_router.callback_query(F.data.startswith("conf_withdrawal_"))
+@inject
+@commit_and_close_session
+async def confirm_withdrawal_callback_handler(
+        callback: CallbackQuery,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
+        withdrawal_request_service: WithdrawalRequestService = Provide[
+            Container.withdrawal_request_service
+        ],
+) -> None:
+    withdrawal_request_id, page_number = callback.data.split('_')[-2:]
+
+    withdrawal_request = await withdrawal_request_service.get_withdrawal_request(
+        id=withdrawal_request_id
+    )
+    reply_markup = get_donate_keyboard(
+        buttons={"🔙 Назад": f"withdrawal_requests_{page_number}"}
+    )
+
+    if withdrawal_request.is_paid:
+        await callback.message.edit_text(
+            f"Запрос на вывод уже подтвежден.",
+            reply_markup=reply_markup,
+        )
+        return
+
+
+    withdrawal_request.is_paid = True
+    await callback.message.edit_text(
+        f"Запрос на вывод успешно подтвежден ✅.",
+        reply_markup=reply_markup,
+    )
+
+    telegram_user = await telegram_user_service.get_telegram_user(
+        id=withdrawal_request.telegram_user_id,
+    )
+    try:
+        await callback.bot.send_message(
+            chat_id=telegram_user.user_id,
+            text=f"{withdrawal_request.tokens_count} USDT отправлены на указанный вами счет."
+        )
+    except TelegramAPIError:
+        pass

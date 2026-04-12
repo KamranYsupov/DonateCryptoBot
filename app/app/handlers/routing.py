@@ -6,6 +6,8 @@ from .info import info_router
 from .ban_user import ban_user_router
 from .referral_message import referral_router
 from .payments import payment_router
+from .withdrawal_request import withdrawal_requests_router
+from .transfer import transfer_router
 
 def get_all_routers() -> Router:
     """Функция для регистрации всех router"""
@@ -17,7 +19,7 @@ def get_all_routers() -> Router:
     router.include_router(ban_user_router)
     router.include_router(referral_router)
     router.include_router(payment_router)
-
-
+    router.include_router(withdrawal_requests_router)
+    router.include_router(transfer_router)
 
     return router

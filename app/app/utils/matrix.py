@@ -131,3 +131,31 @@ def get_matrix_telegram_usernames_key(matrix: Matrix) -> str:
     return f"{matrix.owner_id.hex} {matrix.id} {matrix.created_at}"
 
 
+def get_matrix_levels(data, level=1, levels_dict=None):
+    def process_matrices_value(value):
+        if isinstance(value, str) and value.startswith("none_"):
+            return None
+        return value
+
+    if levels_dict is None:
+        levels_dict = {}
+    
+    if isinstance(data, dict):
+        if level not in levels_dict:
+            levels_dict[level] = []
+        
+        for key in data.keys():
+            processed_key = process_matrices_value(key)
+            levels_dict[level].append(processed_key)
+        
+        for value in data.values():
+            get_matrix_levels(value, level + 1, levels_dict)
+    elif isinstance(data, list):
+        if level not in levels_dict:
+            levels_dict[level] = []
+        
+        for item in data:
+            processed_item = process_matrices_value(item)
+            levels_dict[level].append(processed_item)
+    
+    return levels_dict

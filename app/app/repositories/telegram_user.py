@@ -4,9 +4,7 @@ from sqlalchemy import select, text, func
 from sqlalchemy.orm import joinedload
 
 from .base import RepositoryBase
-from app.models.telegram_user import TelegramUser
-
-from ..models.telegram_user import MatrixBuildType
+from app.models.telegram_user import TelegramUser, MatrixBuildType, DonateStatus
 
 
 class RepositoryTelegramUser(RepositoryBase[TelegramUser]):
@@ -32,10 +30,14 @@ class RepositoryTelegramUser(RepositoryBase[TelegramUser]):
         )
         return self._session.execute(statement).scalars().all()
 
-    def get_users_by_ids(self, ids: list[UUID]):
+    def get_active_users_by_ids(self, ids: list[UUID], **kwargs):
         statement = (
             select(TelegramUser)
-            .where(TelegramUser.id.in_(ids))
+            .where(
+                TelegramUser.status != DonateStatus.NOT_ACTIVE,
+                TelegramUser.id.in_(ids),
+            )
+            .filter_by(**kwargs)
         )
 
         users = self._session.execute(statement).scalars().all()

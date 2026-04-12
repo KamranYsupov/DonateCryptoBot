@@ -7,6 +7,8 @@ import loguru
 from aiogram import Router, F, Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramAPIError
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton, WebAppInfo
 from aiogram.filters import Command
 from aiogram.types import Message
@@ -21,8 +23,58 @@ from app.core.config import settings
 from app.keyboards.donate import get_donations_keyboard
 from app.db.commit_decorator import commit_and_close_session
 from app.services.crypto_bot_api_service import CryptoBotAPIService
+from app.keyboards.reply import reply_cancel_keyboard, get_reply_keyboard
 
 payment_router = Router()
+
+class BuyTokensState(StatesGroup):
+    tokens_count = State()
+
+
+@payment_router.callback_query(F.data.startswith("start_buy_tokens_state"))
+async def start_buy_tokens_state_handler(
+        callback: CallbackQuery,
+        state: FSMContext,
+) -> None:
+    await state.set_state(BuyTokensState.tokens_count)
+    await callback.message.delete()
+    await callback.message.answer(
+        "Отправьте количество токеов для покупки\n\n"
+        "<em><b>1 токен = 1 $</b></em>",
+        reply_markup=reply_cancel_keyboard,
+    )
+
+
+@payment_router.message(F.text, BuyTokensState.tokens_count)
+@inject
+async def process_tokens_count(
+        message: Message,
+        state: FSMContext,
+) -> None:
+    try:
+        tokens_count = int(message.text)
+    except ValueError:
+        await message.answer(
+            "❌ Некорректный ввод. Отправьте положительное, целое число."
+        )
+        return
+
+    await state.clear()
+    await message.answer(
+        f"Будет создан счет на сумму <b>{tokens_count} USDT</b>",
+        reply_markup=get_reply_keyboard(None)
+    )
+    await message.answer(
+        "<b>Продолжить ?</b>",
+        reply_markup=get_donate_keyboard(
+            buttons={
+                "Да": f"buy_tokens_{tokens_count}",
+                "Нет": f"donations",
+            },
+            sizes=(1, 1),
+        )
+    )
+
 
 @payment_router.callback_query(F.data.startswith("buy_tokens_"))
 @inject
@@ -52,8 +104,6 @@ async def buy_tokens_handler(
         return
     result = response["result"]
     invoice_id = result["invoice_id"]
-
-
 
     payment_app_keyboard = InlineKeyboardBuilder()
     payment_app_keyboard.add(

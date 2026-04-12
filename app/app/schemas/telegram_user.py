@@ -1,3 +1,5 @@
+import random
+
 from pydantic import BaseModel, Field
 
 from app.models.telegram_user import DonateStatus
@@ -21,3 +23,15 @@ class TelegramUserEntity(BaseModel):
     is_admin: bool = Field(title="Супер пользователь", default=False)
     depth_level: int = Field(title="Уровень глубины")
     is_banned: bool = Field(title="Заблокирован", default=False)
+
+
+
+def generate_random_user():
+    return TelegramUserEntity(
+        user_id=random.randint(1, 1000),
+        username=f"user_{random.randint(1, 1000)}",
+        first_name=f"User{random.randint(1, 100)}",
+        last_name=f"LastName{random.randint(1, 100)}",
+        depth_level=0,
+    )
+

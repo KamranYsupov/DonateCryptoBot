@@ -4,6 +4,7 @@ from functools import wraps
 
 import loguru
 from aiogram import Router, F
+from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, CommandObject, Command
@@ -12,7 +13,7 @@ from sqlalchemy.sql import func
 
 from app.core.container import Container
 from app.services.telegram_user_service import TelegramUserService
-from app.schemas.telegram_user import TelegramUserEntity
+from app.schemas.telegram_user import TelegramUserEntity, generate_random_user
 from app.schemas.matrix import MatrixEntity
 from app.keyboards.donate import get_donate_keyboard
 from app.core.config import settings
@@ -24,6 +25,7 @@ from app.models.telegram_user import DonateStatus, MatrixBuildType
 from app.db.commit_decorator import commit_and_close_session
 from app.keyboards.reply import get_reply_keyboard
 from app.utils.matrix import get_matrices_length
+from app.services.donate_confirm_service import DonateConfirmService
 
 start_router = Router()
 
@@ -106,7 +108,8 @@ async def cancel_callback_handler(
         callback: CallbackQuery,
         state: FSMContext
 ):
-    await callback.message.edit_text(text="Действие отменено")
+    await callback.message.delete()
+    await callback.message.answer(text="Действие отменено", reply_markup=get_reply_keyboard(None))
     await state.clear()
 
 
@@ -162,6 +165,9 @@ async def admin(
 #         ],
 #         donate_service: DonateService = Provide[Container.donate_service],
 #         matrix_service: MatrixService = Provide[Container.matrix_service],
+#         donate_confirm_service: DonateConfirmService = Provide[
+#             Container.donate_confirm_service
+#         ],
 # ):
 #     donate_sum = int(message.text.split("_")[-1])
 #     status = donate_service.get_donate_status(
@@ -182,59 +188,62 @@ async def admin(
 #         user=user,
 #         sponsor=current_user
 #     )
+#     donations_data = {current_user: donate_sum * settings.sponsor_donate_percent / 100}
 #
-#     created_matrix_dict = {
-#         "owner_id": fake_user.id,
-#         "status": status,
-#     }
-#     created_matrix_entity = MatrixEntity(**created_matrix_dict)
-#     created_matrix = await matrix_service.create_matrix(matrix=created_matrix_entity)
-#
-#     current_matrix = await matrix_service.get_matrix(
-#         owner_id=current_user.id,
-#         status=status,
+#     matrix = await donate_service.handle_matrix_activation(
+#         current_user,
+#         fake_user,
+#         donate_sum,
+#         donations_data,
+#         status,
 #     )
-#     await matrix_service.add_to_matrix(current_matrix, created_matrix, fake_user)
 #
+#     donate = await donate_confirm_service.create_donate(
+#         telegram_user_id=current_user.id,
+#         donate_data=donations_data,
+#         matrix_id=matrix.id,
+#         quantity=donate_sum,
+#     )
+#     fake_user.status = status
 #     await message.answer(
-#         f"✅ пользователь {fake_user.username} успешно добавлен в {current_matrix.id}!\n"
-#         f"Статус стола: <b>{current_matrix.status.value}</b>\n"
+#         f"✅ пользователь {fake_user.username} успешно добавлен в {matrix.id}!\n"
+#         f"Статус стола: <b>{matrix.status.value}</b>\n"
 #         f"{settings.bot_link}?start={fake_user.user_id}",
 #         parse_mode="HTML",
 #     )
 #
 #
 # # Тут функции только для тестов поэтому нет DRY
-@start_router.message(Command("create_admin"))
-@inject
-@commit_and_close_session
-async def create_admin(
-        message: Message,
-        telegram_user_service: TelegramUserService = Provide[
-            Container.telegram_user_service
-        ],
-        matrix_service: MatrixService = Provide[Container.matrix_service],
-):
-    admin_user = await telegram_user_service.get_telegram_user(is_admin=True)
-    if admin_user:
-        return
-    user = generate_random_user()
-    user.status = DonateStatus.SILVER
-    user.is_admin = True
-
-    admin_user = await telegram_user_service.create_telegram_user(user=user)
-
-    for status in status_list:
-        matrix_dict = {"owner_id": admin_user.id, "status": status}
-        await matrix_service.create_matrix(
-            matrix=MatrixEntity(
-                **matrix_dict,
-            )
-        )
-
-    await message.answer(
-        f"✅ Готово - {settings.bot_link}?start={admin_user.user_id}",
-    )
+# @start_router.message(Command("create_admin"))
+# @inject
+# @commit_and_close_session
+# async def create_admin(
+#         message: Message,
+#         telegram_user_service: TelegramUserService = Provide[
+#             Container.telegram_user_service
+#         ],
+#         matrix_service: MatrixService = Provide[Container.matrix_service],
+# ):
+#     admin_user = await telegram_user_service.get_telegram_user(is_admin=True)
+#     if admin_user:
+#         return
+#     user = generate_random_user()
+#     user.status = DonateStatus.SILVER
+#     user.is_admin = True
+#
+#     admin_user = await telegram_user_service.create_telegram_user(user=user)
+#
+#     for status in status_list:
+#         matrix_dict = {"owner_id": admin_user.id, "status": status}
+#         await matrix_service.create_matrix(
+#             matrix=MatrixEntity(
+#                 **matrix_dict,
+#             )
+#         )
+#
+#     await message.answer(
+#         f"✅ Готово - {settings.bot_link}?start={admin_user.user_id}",
+#     )
 
 
 # @start_router.message(F.text.startswith("fakeadmin_"))
@@ -285,12 +294,3 @@ async def create_admin(
 #         parse_mode="HTML",
 #     )
 
-
-def generate_random_user():
-    return TelegramUserEntity(
-        user_id=random.randint(1, 1000),
-        username=f"user_{random.randint(1, 1000)}",
-        first_name=f"User{random.randint(1, 100)}",
-        last_name=f"LastName{random.randint(1, 100)}",
-        depth_level=0,
-    )

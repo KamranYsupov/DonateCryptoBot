@@ -70,12 +70,13 @@ class Settings(BaseSettings):
 
     database_url: PostgresDsn | None = Field(title="Ссылка БД", default=None)
 
-    donate_confirmation_time_minutes: int = Field(
-        title="Время на подтверждение доната в минутах",
-        default=45,
-    )
+    add_bot_to_matrix_1_countdown_minutes: int = 5
+    add_bot_to_matrix_2_countdown_minutes: int = 15
+
     sponsor_donate_percent: int = 20
     matrix_donate_percent: int = 10
+
+    withdrawal_min_tokens_count: int = 10
 
     level_length: int = 2
     second_level_length: int = 4

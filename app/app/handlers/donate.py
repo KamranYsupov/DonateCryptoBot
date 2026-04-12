@@ -156,6 +156,7 @@ async def donations_menu_handler(
         buttons = default_buttons
         admin_buttons = {
             "Скачать базу ⬇️": "excel_users",
+            "Заявки на вывод 💸": "withdrawal_requests_1",
             "Список забаненных пользователей 📇🅱️": "banned_users_1",
             "Забанить пользователя 🔒": "ban_user",
         }
@@ -169,9 +170,6 @@ async def donations_menu_handler(
         )
         return
 
-    all_donates = await donate_confirm_service.get_donate_by_telegram_user_id(
-        telegram_user_id=current_user.id,
-    )
     buttons = {}
     sponsor = await telegram_user_service.get_telegram_user(
         user_id=current_user.sponsor_user_id
@@ -193,6 +191,10 @@ async def donations_menu_handler(
     )
 
     buttons.update(default_buttons)
+    buttons.update({"Преобрести токены": "start_buy_tokens_state"})
+
+    if current_user.bill > 0:
+        buttons.update({"Вывод средств": "withdrawal_request"})
 
     await telegram_method(
         text=message_text,
@@ -319,8 +321,13 @@ async def donate_handler(
         matrix_id=matrix.id,
         quantity=donate_sum,
     )
-    current_user.status = status
     current_user.bill -= donate_sum
+
+    if current_user.status == DonateStatus.NOT_ACTIVE or (
+        int(status.get_status_donate_value())
+        > int(current_user.status.get_status_donate_value())
+    ):
+        current_user.status = status
 
     transactions = await donate_confirm_service.get_donate_transactions_by_donate_id(
         donate_id=donate.id
@@ -334,13 +341,11 @@ async def donate_handler(
         # блок отправки сообщений спонсорам
         try:
             await callback.bot.send_message(
-                text=f"Вам подарок от <b>пользователя {current_user.id.hex[:10]}</b>"
-                     f"в размере ${int(transaction.quantity)}\n",
+                text=f"Вам подарок в размере <b>${int(transaction.quantity)}</b>\n",
                 chat_id=sponsor.user_id,
             )
         except TelegramAPIError:
             pass
-
 
 
     await callback.message.delete()
@@ -591,185 +596,3 @@ async def get_all_transactions(
         ),
     )
 
-
-@donate_router.callback_query(F.data.startswith("confirm_transaction_"))
-@inject
-@commit_and_close_session
-async def confirm_transaction(
-        callback: CallbackQuery,
-        telegram_user_service: TelegramUserService = Provide[
-            Container.telegram_user_service
-        ],
-        matrix_service: MatrixService = Provide[Container.matrix_service],
-        donate_confirm_service: DonateConfirmService = Provide[
-            Container.donate_confirm_service
-        ],
-) -> None:
-    transaction_id = uuid.UUID(get_callback_value(callback.data))
-
-    transaction = await donate_confirm_service.get_donate_transaction_by_id(transaction_id)
-
-    donate = await donate_confirm_service.get_donate_by_id(
-        donate_id=transaction.donate_id
-    )
-    if donate.is_confirmed:
-        await callback.message.edit_text("Транзакция уже подтверждена")
-        return
-
-    transaction = await donate_confirm_service.set_donate_transaction_is_confirmed(
-        donate_transaction_id=transaction_id
-    )
-    sponsor = await telegram_user_service.get_telegram_user(id=transaction.sponsor_id)
-    sponsor.bill += transaction.quantity
-    sender_user = await telegram_user_service.get_telegram_user(
-        id=donate.telegram_user_id
-    )
-    donate_confirm = await donate_confirm_service.check_donate_is_confirmed(
-        donate_id=transaction.donate_id
-    )
-
-    if donate_confirm:
-        current_matrix_id = donate.matrix_id
-        current_matrix = await matrix_service.get_matrix(id=current_matrix_id)
-
-        sender_matrix_dict = {
-            "owner_id": sender_user.id,
-            "status": current_matrix.status,
-        }
-        sender_matrix_entity = MatrixEntity(**sender_matrix_dict)
-        sender_matrix = await matrix_service.create_matrix(matrix=sender_matrix_entity)
-
-        await matrix_service.add_to_matrix(current_matrix, sender_matrix, sender_user)
-
-        if check_is_second_status_higher(
-            sender_user.status,
-            current_matrix.status
-        ):
-            sender_user.status = current_matrix.status
-
-        try:
-            await callback.bot.send_message(
-                text=f"Ваш подарок успешно подтвержден!\n",
-                chat_id=sender_user.user_id,
-                reply_markup=get_reply_keyboard(sender_user),
-            )
-        except TelegramAPIError:
-            pass
-
-        try:
-            channel_donate_confirm_text = get_donate_confirm_message(
-                donate_sum=donate.quantity,
-                donate_status=current_matrix.status,
-            )
-            await callback.bot.send_message(
-                text=channel_donate_confirm_text,
-                chat_id=settings.donates_channel_id,
-            )
-        except TelegramAPIError:
-            pass
-
-
-    message = ("Транзакция на сумму "
-               f"${int(transaction.quantity)} "
-               f"от пользователя @{sender_user.username} подтверждена.")
-    await callback.message.edit_text(
-        message, reply_markup=get_donate_keyboard(
-            buttons={"🔙 Назад": f"transactions"}
-        )
-    )
-
-
-@donate_router.callback_query(F.data.startswith("confirm_admin_"))
-@inject
-@commit_and_close_session
-async def confirm_admin_transaction(
-        callback: CallbackQuery,
-        telegram_user_service: TelegramUserService = Provide[
-            Container.telegram_user_service
-        ],
-        matrix_service: MatrixService = Provide[Container.matrix_service],
-        donate_confirm_service: DonateConfirmService = Provide[
-            Container.donate_confirm_service
-        ],
-) -> None:
-    transaction_id = uuid.UUID(callback.data.split("_")[-1])
-    transaction = await donate_confirm_service.get_donate_transaction_by_id(transaction_id)
-
-    donate = await donate_confirm_service.get_donate_by_id(
-        donate_id=transaction.donate_id
-    )
-    if donate.is_confirmed:
-        await callback.message.edit_text("Транзакция уже подтверждена")
-        return
-
-    transaction = await donate_confirm_service.set_donate_transaction_is_confirmed(
-        donate_transaction_id=transaction_id
-    )
-    sponsor = await telegram_user_service.get_telegram_user(id=transaction.sponsor_id)
-    sponsor.bill += transaction.quantity
-
-    try:
-        if not sponsor.is_admin:
-            await callback.bot.send_message(
-                text=f"<strong>Транзакция <em>{transaction_id}</em> подтверждена админом</strong>",
-                chat_id=sponsor.user_id,
-                parse_mode="HTML",
-                reply_markup=get_reply_keyboard(sponsor),
-            )
-    except TelegramAPIError:
-        pass
-
-    sender_user = await telegram_user_service.get_telegram_user(
-        id=donate.telegram_user_id
-    )
-    donate_confirm = await donate_confirm_service.check_donate_is_confirmed(
-        donate_id=transaction.donate_id
-    )
-
-    if donate_confirm:
-        current_matrix_id = donate.matrix_id
-        current_matrix = await matrix_service.get_matrix(id=current_matrix_id)
-
-        sender_matrix_dict = {
-            "owner_id": sender_user.id,
-            "status": current_matrix.status,
-        }
-        sender_matrix_entity = MatrixEntity(**sender_matrix_dict)
-        sender_matrix = await matrix_service.create_matrix(matrix=sender_matrix_entity)
-
-        await matrix_service.add_to_matrix(current_matrix, sender_matrix, sender_user)
-
-        if check_is_second_status_higher(
-            sender_user.status,
-            current_matrix.status
-        ):
-            sender_user.status = current_matrix.status
-
-        try:
-            await callback.bot.send_message(
-                text=f"Ваш подарок успешно подтвержден!\n",
-                chat_id=sender_user.user_id,
-                reply_markup=get_reply_keyboard(sender_user),
-            )
-        except TelegramAPIError:
-            pass
-        try:
-            channel_donate_confirm_text = get_donate_confirm_message(
-                donate_sum=donate.quantity,
-                donate_status=current_matrix.status,
-            )
-            await callback.bot.send_message(
-                text=channel_donate_confirm_text,
-                chat_id=settings.donates_channel_id,
-            )
-        except TelegramAPIError:
-            pass
-
-    message = (f"Транзакция на сумму "
-               f"${int(transaction.quantity)} "
-               f"от пользователя @{sender_user.username} подтверждена.")
-    await callback.message.edit_text(
-        message, reply_markup=get_donate_keyboard(
-            buttons={"🔙 Назад": f"transactions"}
-        )
-    )

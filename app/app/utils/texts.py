@@ -1,5 +1,7 @@
+import copy
 from typing import Any
 from collections import deque
+import uuid
 
 from aiogram import html
 
@@ -11,13 +13,14 @@ from app.models.telegram_user import (
 )
 from app.models.telegram_user import TelegramUser
 from app.models.matrix import Matrix
-from app.utils.matrix import get_sorted_matrices
+from app.utils.matrix import find_free_place_in_matrix, get_matrix_levels, get_sorted_matrices, insert_into_matrices
 from app.utils.pagination import Paginator
 from app.models.telegram_user import MatrixBuildType
 from app.core.config import Settings, settings
 from app.models.matrix import Matrix
 from app.core.config import Settings
 from app.models.matrix import Matrix
+from app.models.withdrawal_request import WithdrawalRequest
 
 
 def get_donate_confirm_message(
@@ -76,6 +79,22 @@ def get_user_info_message(user: TelegramUser) -> str:
     return message
 
 
+def get_withdrawal_request_info_message(
+        withdrawal_request: WithdrawalRequest,
+        withdrawal_request_user: TelegramUser,
+) -> str:
+    message = (
+        f"ID: {html.bold(withdrawal_request.id)}\n\n"
+        f"Адрес кошелька: {html.code(withdrawal_request.wallet_address)}\n"
+        f"Сумма: ${html.code(withdrawal_request.tokens_count)}\n"
+        f"Пользователь: @{html.bold(withdrawal_request_user.username)}\n"
+        f"Подтвержден: " + html.bold("да" if withdrawal_request.is_paid else "нет") + "\n"
+        f"Дата и время создания: "
+        + html.bold(withdrawal_request.created_at.strftime("%d.%m.%Y %H:%M"))
+    )
+    return message
+
+
 def get_my_team_message(
         matrices: list[Matrix],
         page_number: int,
@@ -122,8 +141,7 @@ def get_my_team_message(
 
 def get_matrix_info_message(
         matrix: Matrix,
-        level_length: int =settings.level_length,
-        max_level=settings.matrix_max_level,
+        level_length: int = settings.level_length,
 ):
     """
     Выводит бинарное дерево матрицы.
@@ -133,52 +151,36 @@ def get_matrix_info_message(
         lines.append("\nВсе места свободны\n")
 
         return "\n".join(lines)
-    queue = deque([(matrix.matrices, 1)])
-    counter = 0
-    current_level = 0
+    counter = 1
 
-    while queue:
-        node, level = queue.popleft()
+    matrices = copy.deepcopy(matrix.matrices)
 
-        if level != current_level:
-            current_level = level
-            lines.append(f"\n<b>{level}) уровень:</b>")
+    matrix_len = len(matrix.telegram_users)
+    while matrix_len != settings.matrix_max_length:
+        free_place_path = find_free_place_in_matrix(matrices, level_length)
+        free_place_level = len(free_place_path) + 1
 
-        if node is None:
+        insert_into_matrices(
+            matrices, 
+            free_place_path,
+            free_place_level,
+            f"none_{uuid.uuid4()}"
+        )
+        matrix_len += 1
+
+    levels_data = get_matrix_levels(matrices)
+    for level_number in sorted(levels_data.keys()):
+        if level_number > settings.matrix_max_level:
+            break
+        level = levels_data[level_number]
+
+        lines.append(f"\n<b>{level_number} Уровень:</b>")
+        for obj in level:
+            value = "Свободно" if obj is None else "Занято"
+            lines.append(f"{counter}) {value}")
             counter += 1
-            lines.append(f"{counter}) Свободно")
-            if level < max_level:
-                for _ in range(level_length):
-                    queue.append((None, level + 1))
-            continue
 
-        if isinstance(node, dict):
-            keys = list(node.keys())
-            for i in range(level_length):
-                if i < len(keys):
-                    counter += 1
-                    key = keys[i]
-                    lines.append(f"{counter}) Занято")
-                    queue.append((node[key], level + 1))
-                else:
-                    counter += 1
-                    lines.append(f"{counter}) Свободно")
-                    if level < max_level:
-                        for _ in range(level_length):
-                            queue.append((None, level + 1))
 
-        elif isinstance(node, list):
-            for val in node:
-                counter += 1
-                lines.append(f"{counter}) {val}")
-            free_slots = level_length - len(node)
-            for _ in range(free_slots):
-                counter += 1
-                lines.append(f"{counter}) Свободно")
-                if level < max_level:
-                    for _ in range(level_length):
-                        queue.append((None, level + 1))
-
-    lines.append(f"\nВсего участников: <b>{len(matrix.telegram_users)}</b>\n\n")
+    lines.append(f"\nВсего участников: <b>{len(matrix.telegram_users)}</b>\n")
 
     return "\n".join(lines)

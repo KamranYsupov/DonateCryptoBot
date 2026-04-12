@@ -17,10 +17,10 @@ from app.schemas.matrix import MatrixEntity
 from app.utils.matrix import get_matrices_length
 from app.utils.matrix import find_first_level_matrix_id
 from app.utils.sort import get_reversed_dict
-from app.tasks.matrix import send_matrix_first_level_notification_task
 from app.core.config import settings
 from app.utils.matrix import find_free_place_in_matrix, insert_into_matrices
 from app.utils.matrix import get_matrix_telegram_usernames_key
+from app.tasks.matrix import add_bot_to_matrix_task
 
 
 class DonateService:
@@ -81,6 +81,7 @@ class DonateService:
             donations_data: dict,
             free_place_path: list[uuid.UUID],
             parents: list[Matrix],
+            is_bot: bool,
     ) -> dict[uuid.UUID, int | float]:
         matrix_donate_sum = donate_sum * settings.matrix_donate_percent / 100
         parents_owners_ids = [parent.owner_id for parent in parents]
@@ -95,7 +96,10 @@ class DonateService:
             + parents_owners_ids
         )
 
-        donate_receivers = self._repository_telegram_user.get_users_by_ids(donate_receivers_ids)
+        donate_receivers = self._repository_telegram_user.get_active_users_by_ids(
+            ids=donate_receivers_ids,
+            is_bot=False,
+        )
 
         for receiver in donate_receivers:
             self._extend_donations_data(
@@ -103,6 +107,17 @@ class DonateService:
                 receiver,
                 matrix_donate_sum,
             )
+
+        if is_bot:
+            return donations_data
+
+        receivers_donate_sum = sum(list(donations_data.values()))
+        admin_user = self._repository_telegram_user.get(is_admin=True)
+        self._extend_donations_data(
+            donations_data,
+            admin_user,
+            donate_sum - receivers_donate_sum,
+        )
 
         return donations_data
 
@@ -141,7 +156,6 @@ class DonateService:
         matrix_to_add_path_matrices = self._repository_matrix.get_matrices_by_ids_list(
             free_place_path, mapping=True
         )
-        loguru.logger.info(str(matrix_to_add_path_matrices))
 
         matrix_to_add.telegram_users.append(current_user.user_id)
         insert_into_matrices(
@@ -164,9 +178,6 @@ class DonateService:
             child_matrix_free_level -= 1
             child_matrix_path.remove(str(path_matrix.id))
             child_matrix_telegram_usernames_path.remove(get_matrix_telegram_usernames_key(path_matrix))
-
-            path_matrix_owner = self._repository_telegram_user.get(id=path_matrix.owner_id)
-            loguru.logger.info(path_matrix_owner.username)
 
             path_matrix.telegram_users.append(current_user.user_id)
             insert_into_matrices(
@@ -212,6 +223,8 @@ class DonateService:
                 get_matrix_telegram_usernames_key(parent_matrix)
             ] + parent_matrix_telegram_usernames_path
 
+        return created_matrix
+
     async def handle_matrix_activation(
             self,
             first_sponsor: TelegramUser,
@@ -220,7 +233,18 @@ class DonateService:
             donations_data: dict,
             status: DonateStatus,
             level_length: int = settings.level_length,
+            found_matrix: Matrix | None = None
     ) -> Matrix:
+        if found_matrix:
+            await self._handle_insertion_to_free_matrix(
+                found_matrix,
+                current_user,
+                donate_sum,
+                donations_data,
+                level_length,
+                start_bot_tasks=False,
+            )
+            return found_matrix
 
         first_sponsor_matrices = self._repository_matrix.get_user_matrices(
             owner_id=first_sponsor.id,
@@ -238,6 +262,7 @@ class DonateService:
                 )
                 return matrix
         else:
+
             return await self._find_free_matrix(
                 current_user,
                 donate_sum,
@@ -254,6 +279,7 @@ class DonateService:
             donate_sum: int | float,
             donations_data: dict,
             level_length: int = settings.level_length,
+            start_bot_tasks: bool = True
     ):
         free_place_path = find_free_place_in_matrix(free_matrix.matrices, level_length)
         free_place_level = len(free_place_path) + 1
@@ -267,14 +293,15 @@ class DonateService:
             donate_sum,
             donations_data,
             free_place_path,
-            parents
+            parents,
+            is_bot=current_user.is_bot,
         )
 
         matrix_telegram_usernames_path = find_free_place_in_matrix(
             free_matrix.matrix_telegram_usernames,
             level_length
         )
-        await self.add_to_matrix(
+        created_matrix = await self.add_to_matrix(
             free_matrix,
             current_user,
             free_place_level,
@@ -282,6 +309,17 @@ class DonateService:
             matrix_telegram_usernames_path,
             parents,
         )
+
+        if False:
+            add_bot_to_matrix_task.apply_async(
+                args=[created_matrix.id, donate_sum],
+                countdown=settings.add_bot_to_matrix_1_countdown_minutes #* 60
+            )
+            add_bot_to_matrix_task.apply_async(
+                args=[created_matrix.id, donate_sum],
+                countdown=settings.add_bot_to_matrix_2_countdown_minutes #* 60
+            )
+
 
     async def _find_free_matrix(
             self,
@@ -291,6 +329,8 @@ class DonateService:
             donations_data: dict,
             level_length: int,
     ):
+
+        current_user = user_to_add
         while True:
             next_sponsor = self._repository_telegram_user.get(
                 user_id=user_to_add.sponsor_user_id
@@ -312,7 +352,7 @@ class DonateService:
                 if len(matrix.telegram_users) < settings.matrix_max_length:
                     await self._handle_insertion_to_free_matrix(
                         matrix,
-                        user_to_add,
+                        current_user,
                         donate_sum,
                         donations_data,
                         level_length,
