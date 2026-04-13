@@ -148,10 +148,12 @@ async def donations_menu_handler(
 ) -> None:
     telegram_method = aiogram_type.answer if isinstance(aiogram_type, Message) \
         else aiogram_type.message.edit_text
-    default_buttons = {
-        "Транзакции 💳": f"transactions",
-        "АКТИВНЫЕ УРОВНИ": f"team_1"
-    }
+    default_buttons = {}
+
+    # {
+    #     "Транзакции 💳": f"transactions",
+    #     "АКТИВНЫЕ УРОВНИ": f"team_1"
+    # }
 
     current_user = await telegram_user_service.get_telegram_user(
         user_id=aiogram_type.from_user.id
@@ -209,10 +211,10 @@ async def donations_menu_handler(
     )
 
     buttons.update(default_buttons)
-    buttons.update({"Преобрести токены": "start_buy_tokens_state"})
-
-    if current_user.bill > 0:
-        buttons.update({"Вывод средств": "withdrawal_request"})
+    buttons.update({"Пополнить баланс": "start_buy_tokens_state"})
+    #
+    # if current_user.bill > 0:
+    #     buttons.update({"Вывод средств": "withdrawal_request"})
 
     await telegram_method(
         text=message_text,

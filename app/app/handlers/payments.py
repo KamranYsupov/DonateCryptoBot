@@ -39,8 +39,8 @@ async def start_buy_tokens_state_handler(
     await state.set_state(BuyTokensState.tokens_count)
     await callback.message.delete()
     await callback.message.answer(
-        "Отправьте количество токеов для покупки\n\n"
-        "<em><b>1 токен = 1 $</b></em>",
+        "Для пополнения баланса отправьте в сообщении боту число.\n\n"
+        "Пример: 175",
         reply_markup=reply_cancel_keyboard,
     )
 
