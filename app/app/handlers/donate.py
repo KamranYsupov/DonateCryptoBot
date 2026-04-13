@@ -87,7 +87,7 @@ async def subscription_checker(
     )
 
     not_subscribed_statuses = (ChatMemberStatus.LEFT, ChatMemberStatus.KICKED)
-    if channel_result.status in not_subscribed_statuses and chat_result.status in not_subscribed_statuses:
+    if channel_result.status in not_subscribed_statuses or chat_result.status in not_subscribed_statuses:
         await callback.answer("Ты не подписался ❌", show_alert=True)
         return
 

@@ -36,7 +36,7 @@ async def subscription_checker_middleware(
     )
 
     not_subscribed_statuses = (ChatMemberStatus.LEFT, ChatMemberStatus.KICKED)
-    if channel_result.status in not_subscribed_statuses and chat_result.status in not_subscribed_statuses:
+    if channel_result.status in not_subscribed_statuses or chat_result.status in not_subscribed_statuses:
         buttons = [
             InlineKeyboardButton(
                 text="📌 КАНАЛ 📌",
