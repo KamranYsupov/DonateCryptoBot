@@ -31,27 +31,23 @@ async def about_handler(
     base_photo = FSInputFile("app/media/base_photo.jpg")
 
     presentation_keyboard = InlineKeyboardBuilder()
-    presentation_button = InlineKeyboardButton(
-        text="Презентация 📑",
-        url=settings.presentation_link
-    )
-    chat_link_button = InlineKeyboardButton(
-        text="💬 Чат «НА СВЯЗИ»",
-        url=settings.group_link
-    )
-    donate_channel_link_button = InlineKeyboardButton(
-        text="Канал Подарков 🎁",
-        url=settings.donates_channel_link
-    )
-    web_app_link_button = InlineKeyboardButton(
-        text="Нетворкинг",
-        url=settings.web_app_link
-    )
     presentation_keyboard.add(
-        presentation_button,
-        chat_link_button,
-        donate_channel_link_button,
-        web_app_link_button,
+        InlineKeyboardButton(
+            text="🎬 Фильм «KOD 💵 DENEG»",
+            url="https://t.me/kod_deneg_film/15"
+        ),
+        InlineKeyboardButton(
+            text="📎 Инструкция к фильму",
+            url="https://t.me/kod_deneg_film/12"
+        ),
+        InlineKeyboardButton(
+            text="📌 Канал сообщества",
+            url=settings.channel_link
+        ),
+        InlineKeyboardButton(
+            text="💬 Чат сообщества",
+            url=settings.chat_link
+        ),
     )
     presentation_keyboard.add()
 
@@ -136,26 +132,26 @@ async def team_inline_handler(
 
 
 
-@info_router.message(F.text == "🔗 Реф ссылка")
+@info_router.message(F.text == "🚀 Продвижение")
 async def referral_message_handler(message: Message):
-    photo = FSInputFile("app/media/gift_network_logo.jpg")
-    gift_network_keyboard = InlineKeyboardBuilder()
+    photo = FSInputFile("app/media/base_photo.jpg")
+    keyboard = InlineKeyboardBuilder()
     registration_link = f"{settings.bot_link}?start={message.from_user.id}"
     registration_button = InlineKeyboardButton(
-        text="🚀 РЕГИСТРАЦИЯ 🚀",
+        text="🔑 Получить доступ",
         url=registration_link
     )
-    gift_network_keyboard.add(registration_button)
+    keyboard.add(registration_button)
     await message.answer_photo(
         photo=photo,
-        caption=("🤝 «НА СВЯЗИ» — сервис партнерств, который действительно работает! 💰✨\n\n"
-                 "✅ Находи крутых людей по всему миру;\n"
-                 "✅ Продвигай свои проекты и привлекай партнеров без границ;\n"
-                 "✅ Получай деньги с мощной партнёрской программой 1000₽, 10000₽, 100000₽ ежедневно!\n\n"
-                 "🔥 Создавай ценные связи — и монетизируй каждое общение! 💬\n\n"
-                 "🎁 Начни СЕЙЧАС — и получи новые возможности! 🎉✨")
-        ,
-        reply_markup=gift_network_keyboard.as_markup(),
+        caption=(
+            "🎬 «Код Денег» — нейронаучный фильм. Никаких сложных техник. "
+            "Просто берёшь бумагу, пишешь желаемую сумму. И смотришь видео.\n\n"
+            "🧠 Без магии. Без усилий. Твой мозг сам переключается из дефицита в изобилие."
+            " Ты начинаешь замечать деньги там, где раньше видел стены.\n\n"
+            "📎 Всё, что нужно — фильм, инструкция и чат. Внутри бота."
+        ),
+        reply_markup=keyboard.as_markup(),
     )
     await message.answer(
         f"Ваша реферальная ссылка: {registration_link}",

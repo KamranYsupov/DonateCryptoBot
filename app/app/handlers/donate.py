@@ -6,9 +6,10 @@ import loguru
 from aiogram import Router, F, Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramAPIError
-from aiogram.types import CallbackQuery, FSInputFile
+from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.types import Message
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from dependency_injector.wiring import inject, Provide
 
@@ -44,13 +45,25 @@ async def subscribe_handler(
 ) -> None:
     sponsor_user_id = get_callback_value(callback.data)
 
-    await callback.message.edit_text(
-        f"Для старта работы, присоединитесь к чату нашего сообщества\n\n {settings.chat_link}",
-        reply_markup=get_donate_keyboard(
-            buttons={
-                "Я подписан(а) ✅": f"menu_{sponsor_user_id}",
-            }
-        ),
+    buttons = [
+        InlineKeyboardButton(
+            text="📌 КАНАЛ 📌",
+            url=settings.channel_link),
+        InlineKeyboardButton(
+            text="💬 ЧАТ 💬",
+            url=settings.chat_link),
+        InlineKeyboardButton(
+            text="Проверить подписку ✅",
+            callback_data=f"menu_{sponsor_user_id}",
+        )
+    ]
+    keyboard = InlineKeyboardBuilder()
+    keyboard.add(*buttons)
+
+    await callback.message.delete()
+    await callback.message.answer(
+        f"🔑 Для доступа к основным функциям бота, подпишитесь на чат и канал сообщества ⤵️",
+        reply_markup=keyboard.adjust(1, 1).as_markup()
     )
 
 
@@ -66,10 +79,15 @@ async def subscription_checker(
     sponsor_user_id = get_callback_value(callback.data)
     sponsor = await telegram_user_service.get_telegram_user(user_id=sponsor_user_id)
 
-    result = await callback.bot.get_chat_member(
+    chat_result = await callback.bot.get_chat_member(
         chat_id=settings.chat_id, user_id=callback.from_user.id
     )
-    if result.status in (ChatMemberStatus.LEFT, ChatMemberStatus.KICKED):
+    channel_result = await callback.bot.get_chat_member(
+        chat_id=settings.channel_id, user_id=callback.from_user.id
+    )
+
+    not_subscribed_statuses = (ChatMemberStatus.LEFT, ChatMemberStatus.KICKED)
+    if channel_result.status in not_subscribed_statuses and chat_result.status in not_subscribed_statuses:
         await callback.answer("Ты не подписался ❌", show_alert=True)
         return
 

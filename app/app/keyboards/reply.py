@@ -11,7 +11,7 @@ def get_reply_keyboard(current_user: TelegramUser):
         ],
         [
             KeyboardButton(text="⚙️ Настройки"),
-            KeyboardButton(text="🔗 Реф ссылка")
+            KeyboardButton(text="🚀 Продвижение")
         ],
     ]
 

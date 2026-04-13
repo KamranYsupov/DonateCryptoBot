@@ -11,23 +11,8 @@ x-function: &python
     - internal
   depends_on:
     - app_db
-    - rabbitmq
-    - redis
   env_file:
     .env
-
-
-x-celery: &base_celery
-  <<: *python
-  build:
-    context: .
-    dockerfile: backend.dockerfile
-  entrypoint: celery
-  links:
-    - redis
-    - rabbitmq
-  networks:
-    - internal
 
 services:
 
@@ -59,49 +44,11 @@ services:
     env_file:
       - .env
 
-  rabbitmq:
-    image: rabbitmq:management
-    hostname: rabbitmq
-    container_name: ${PROJECT_SLUG}_rabbitmq
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    ports:
-      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
-    networks:
-      - internal
-    env_file:
-      - .env
-    restart: always
-
-  redis:
-    image: redis:7.0.11-alpine
-    hostname: redis
-    container_name: ${PROJECT_SLUG}_redis
-    volumes:
-      - redis_data:/data
-    ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
-    networks:
-      - internal
-    env_file:
-      - .env
-    restart: always
-
-
-  worker:
-    <<: *base_celery
-    hostname: worker
-    container_name: ${PROJECT_SLUG}_worker
-    command: >
-      -A app.core.celery worker -l info -P gevent
-    restart: always
 
 
 volumes:
   app_db-template:
   poetry-volume:
-  redis_data:
-  rabbitmq_data:
 
 networks:
   internal:

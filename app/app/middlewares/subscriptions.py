@@ -1,5 +1,6 @@
 from aiogram.enums import ChatMemberStatus
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from dependency_injector.wiring import inject, Provide
 
 from app.services import telegram_user_service
@@ -27,19 +28,33 @@ async def subscription_checker_middleware(
     )
     if not current_user:
         return await handler(event, data)
-    result = await event.bot.get_chat_member(
+    chat_result = await event.bot.get_chat_member(
         chat_id=settings.chat_id, user_id=event.from_user.id
     )
+    channel_result = await event.bot.get_chat_member(
+        chat_id=settings.channel_id, user_id=event.from_user.id
+    )
 
-    if result.status in (ChatMemberStatus.LEFT, ChatMemberStatus.KICKED):
+    not_subscribed_statuses = (ChatMemberStatus.LEFT, ChatMemberStatus.KICKED)
+    if channel_result.status in not_subscribed_statuses and chat_result.status in not_subscribed_statuses:
+        buttons = [
+            InlineKeyboardButton(
+                text="📌 КАНАЛ 📌",
+                url=settings.channel_link),
+            InlineKeyboardButton(
+                text="💬 ЧАТ 💬",
+                url=settings.chat_link),
+            InlineKeyboardButton(
+                text="Проверить подписку ✅",
+                callback_data=f"menu_{current_user.sponsor_user_id}",
+            )
+        ]
+        keyboard = InlineKeyboardBuilder()
+        keyboard.add(*buttons)
+
         await event.answer(
-            f"Присоединитесь к чату нашего сообщества\n\n {settings.chat_link}",
-            reply_markup=get_donate_keyboard(
-                buttons={
-                    "Я подписан(а) ✅": f"menu_{current_user.sponsor_user_id}",
-                }
-            ),
+            f"🔑 Для доступа к основным функциям бота, подпишитесь на чат и канал сообщества ⤵️",
+            reply_markup=keyboard.adjust(1, 1).as_markup()
         )
-        return
 
     return await handler(event, data)
