@@ -27,6 +27,7 @@ from app.keyboards.reply import get_reply_keyboard
 from app.utils.matrix import get_matrices_length
 from app.services.donate_confirm_service import DonateConfirmService
 
+
 start_router = Router()
 
 
@@ -133,7 +134,7 @@ async def admin(
 
     user_dict["user_id"] = user_id
     user_dict["is_admin"] = True
-    user_dict["status"] = DonateStatus.SILVER
+    user_dict["status"] = DonateStatus.get_status_list()[-1]
     user_dict["depth_level"] = 0
     user = TelegramUserEntity(**user_dict)
 

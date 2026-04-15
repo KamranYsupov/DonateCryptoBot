@@ -148,16 +148,17 @@ async def donations_menu_handler(
 ) -> None:
     telegram_method = aiogram_type.answer if isinstance(aiogram_type, Message) \
         else aiogram_type.message.edit_text
-    default_buttons = {}
-
-    # {
-    #     "Транзакции 💳": f"transactions",
-    #     "АКТИВНЫЕ УРОВНИ": f"team_1"
-    # }
 
     current_user = await telegram_user_service.get_telegram_user(
         user_id=aiogram_type.from_user.id
     )
+    default_buttons = {}
+
+    if current_user.status != DonateStatus.NOT_ACTIVE:
+        default_buttons.update({
+            "Транзакции 💳": f"transactions",
+            "АКТИВНЫЕ УРОВНИ": f"team_1"
+        })
 
     if current_user.is_admin:
         users = await telegram_user_service.get_list()
@@ -325,7 +326,11 @@ async def donate_handler(
     first_sponsor = await telegram_user_service.get_telegram_user(
         user_id=current_user.sponsor_user_id
     )
-    donations_data = {first_sponsor: donate_sum * settings.sponsor_donate_percent / 100}
+    donations_data = {}
+    if first_sponsor.status != DonateStatus.NOT_ACTIVE:
+        donations_data.update({
+            first_sponsor: donate_sum * settings.sponsor_donate_percent / 100
+        })
 
     matrix = await donate_service.handle_matrix_activation(
         first_sponsor,

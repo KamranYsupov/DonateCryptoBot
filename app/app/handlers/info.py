@@ -23,7 +23,7 @@ from app.models.telegram_user import TelegramUser
 info_router = Router()
 
 
-@info_router.message(F.text == "💡О Нас")
+@info_router.message(F.text == "KOD💵DENEG")
 @inject
 async def about_handler(
         message: Message,

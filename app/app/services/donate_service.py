@@ -38,12 +38,18 @@ class DonateService:
     def get_donate_status(
             donate_sum: int,
     ) -> DonateStatus | None:
-        if donate_sum == 50:
+        if donate_sum == 25:
             return DonateStatus.BASE
-        elif donate_sum == 100:
+        elif donate_sum == 50:
             return DonateStatus.BRONZE
-        elif donate_sum == 150:
+        elif donate_sum == 100:
             return DonateStatus.SILVER
+        elif donate_sum == 250:
+            return DonateStatus.GOLD
+        elif donate_sum == 500:
+            return DonateStatus.PLATINUM
+        elif donate_sum == 1000:
+            return DonateStatus.BRILLIANT
 
         return None
 
@@ -102,6 +108,9 @@ class DonateService:
         )
 
         for receiver in donate_receivers:
+            if receiver.status == DonateStatus.NOT_ACTIVE:
+                continue
+
             self._extend_donations_data(
                 donations_data,
                 receiver,

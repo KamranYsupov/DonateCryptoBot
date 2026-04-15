@@ -28,13 +28,19 @@ class DonateStatus(enum.Enum):
     BASE = "Старт"
     BRONZE = "Бронза"
     SILVER = "Серебро"
+    GOLD = "Золото"
+    PLATINUM = "Платина"
+    BRILLIANT = "Бриллиант"
 
     @classmethod
     def get_donations_data(cls):
         return {
-            cls.BASE: 50,
-            cls.BRONZE: 100,
-            cls.SILVER: 150,
+            cls.BASE: 25,
+            cls.BRONZE: 50,
+            cls.SILVER: 100,
+            cls.GOLD: 250,
+            cls.PLATINUM: 500,
+            cls.BRILLIANT: 1000,
         }
 
     def get_status_donate_value(
@@ -49,6 +55,9 @@ class DonateStatus(enum.Enum):
             cls.BASE,
             cls.BRONZE,
             cls.SILVER,
+            cls.GOLD,
+            cls.PLATINUM,
+            cls.BRILLIANT,
         ]
 
 
@@ -57,11 +66,18 @@ status_emoji_list = [
     "1️⃣" ,
     "2️⃣" ,
     "3️⃣" ,
+    "4️⃣" ,
+    "5️⃣" ,
+    "6️⃣" ,
+    "7️⃣" ,
 ]
 statuses_colors_data = {
     DonateStatus.BASE: "🟢",
     DonateStatus.BRONZE : "🟠",
     DonateStatus.SILVER: "⚪",
+    DonateStatus.GOLD: "🟡",
+    DonateStatus.PLATINUM: "⚫",
+    DonateStatus.BRILLIANT: "🟣",
 }
 
 class TelegramUser(UUIDMixin, TimestampedMixin, AbstractTelegramUser, Base):
