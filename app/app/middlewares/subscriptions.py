@@ -56,5 +56,6 @@ async def subscription_checker_middleware(
             f"🔑 Для доступа к основным функциям бота, подпишитесь на чат и канал сообщества ⤵️",
             reply_markup=keyboard.adjust(1, 1).as_markup()
         )
+        return
 
     return await handler(event, data)
