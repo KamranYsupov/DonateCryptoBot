@@ -1,7 +1,7 @@
 import uuid
 import enum
 
-from sqlalchemy import Column, UUID, ForeignKey, Enum
+from sqlalchemy import Column, UUID, ForeignKey, Enum, Boolean, Integer, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.orm import relationship
@@ -29,5 +29,22 @@ class Matrix(UUIDMixin, TimestampedMixin, Base):
     telegram_users = Column(MutableList.as_mutable(JSONB), index=True, default=[])
 
     __table_args__ = {"extend_existing": True}
+
+
+class AddBotToMatrixTaskModel(UUIDMixin, TimestampedMixin, Base):
+    __tablename__ = "add_to_matrix_tasks"
+
+    execute_at = Column(DateTime, index=True)
+    is_executed = Column(Boolean, default=False, index=True)
+
+    donate_sum = Column(Integer)
+    matrix_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("matrices.id"),
+        index=True,
+    )
+
+    __table_args__ = {"extend_existing": True}
+
 
 
