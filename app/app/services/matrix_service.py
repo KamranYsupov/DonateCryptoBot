@@ -5,9 +5,9 @@ from typing import Tuple, Any
 import loguru
 
 from app.models.telegram_user import DonateStatus, status_list
-from app.repositories.matrix import RepositoryMatrix
-from app.models import Matrix
-from app.schemas.matrix import MatrixEntity
+from app.repositories.matrix import RepositoryMatrix, RepositoryAddBotToMatrixTaskModel
+from app.models import Matrix, AddBotToMatrixTaskModel
+from app.schemas.matrix import MatrixEntity, AddBotToMatrixTaskEntity
 from app.utils.matrix import get_sorted_matrices
 from app.utils.pagination import Paginator
 from app.models.telegram_user import TelegramUser
@@ -19,6 +19,7 @@ from app.utils.matrix import (
 from app.utils.sort import get_sorted_objects_by_ids
 from app.utils.matrix import find_first_level_matrix_id
 from app.models.telegram_user import MatrixBuildType
+from app.schemas.telegram_user import generate_random_user
 
 
 class MatrixService:
@@ -73,26 +74,27 @@ class MatrixService:
     async def delete(self, obj_id: uuid.UUID):
         self._repository_matrix.delete(obj_id=obj_id)
 
-    def get_matrix_telegram_users(
+
+class AddBotToMatrixTaskModelService:
+    def __init__(
             self,
-            matrix: Matrix
-    ) -> tuple[list[TelegramUser], int]:
-        first_matrices_ids, second_matrices_ids = get_matrices_list(matrix.matrices)
+            repository_add_bot_to_matrix_task: RepositoryAddBotToMatrixTaskModel
+    ) -> None:
+        self._repository_add_bot_to_matrix_task = repository_add_bot_to_matrix_task
 
-        matrices_ids = first_matrices_ids + second_matrices_ids
+    async def get_list(self, *args, **kwargs) -> list[Matrix]:
+        return self._repository_add_bot_to_matrix_task.list(*args, **kwargs)
 
-        first_matrices = self._repository_matrix.get_matrices_by_ids_list(first_matrices_ids)
-        second_matrices = self._repository_matrix.get_matrices_by_ids_list(second_matrices_ids)
-        first_sorted_matrices = sorted(get_sorted_objects_by_ids(first_matrices, first_matrices_ids),
-                                       key=lambda x: x.created_at)
-        second_sorted_matrices = sorted(get_sorted_objects_by_ids(second_matrices, second_matrices_ids),
-                                        key=lambda x: x.created_at)
+    async def get_task(self, **kwargs) -> Matrix:
+        return self._repository_add_bot_to_matrix_task.get(**kwargs)
 
-        telegram_users_ids = [
-            matrix.owner_id if matrix else 0 for matrix in (first_sorted_matrices + second_sorted_matrices)
-        ]
-        telegram_users = self._repository_telegram_user.get_telegram_users_by_user_ids_list(telegram_users_ids)
-        sorted_telegram_users = get_sorted_objects_by_ids(telegram_users, telegram_users_ids)
+    async def create_task(self, add_bot_to_matrix_task_model: AddBotToMatrixTaskEntity) -> Matrix:
+        return self._repository_add_bot_to_matrix_task.create(
+            obj_in=add_bot_to_matrix_task_model.model_dump()
+        )
 
-        return sorted_telegram_users, len(first_matrices_ids)
+    async def set_is_executed(self, ids: list[uuid.UUID], commit: bool = False,):
+        return self._repository_add_bot_to_matrix_task.set_is_executed(ids, commit)
+
+
 

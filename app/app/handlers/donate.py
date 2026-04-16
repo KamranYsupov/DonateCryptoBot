@@ -168,11 +168,11 @@ async def donations_menu_handler(
         )
         message_text = (
             f"Партнеров в «НА СВЯЗИ»: <b>{len(users)}</b>\n"
-            f"Всего подарили: <b>${int(bills_sum)}</b>\n\n"
+            f"Всего подарили: <b>${bills_sum}</b>\n\n"
             f"{statuses_statistic_message}\n"
             f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
             f"Количество токенов: "
-            f"<b>{int(current_user.bill)}</b>\n"
+            f"<b>{current_user.bill}</b>\n"
         )
         buttons = default_buttons
         admin_buttons = {
@@ -208,7 +208,7 @@ async def donations_menu_handler(
               f"Мой статус: <b>{current_user.status.value}</b>\n"
               f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
               f"Количество токенов: "
-              f"<b>{int(current_user.bill)}</b>\n"
+              f"<b>{current_user.bill}</b>\n"
     )
 
     buttons.update(default_buttons)
@@ -257,12 +257,13 @@ async def confirm_donate(
         return
 
     callback_donate_data = "_".join(callback.data.split("_")[1:])
-    donate_sum = callback_donate_data.split("_")[-1]
+    donate_sum = float(callback_donate_data.split("_")[-1])
     current_user = await telegram_user_service.get_telegram_user(
         user_id=callback.from_user.id
     )
 
-    need_to_buy_tokens = current_user.bill - int(donate_sum)
+
+    need_to_buy_tokens = current_user.bill - donate_sum
     if need_to_buy_tokens < 0:
         need_to_buy_tokens = int(abs(need_to_buy_tokens))
         await callback.message.edit_text(
@@ -354,29 +355,33 @@ async def donate_handler(
     ):
         current_user.status = status
 
-    transactions = await donate_confirm_service.get_donate_transactions_by_donate_id(
-        donate_id=donate.id
+    transactions_data = await donate_confirm_service.get_donate_transactions_by_donate_id(
+        donate_id=donate.id, return_data=True,
     )
-
-    for transaction in transactions:
+    messages = []
+    for transaction in transactions_data:
         sponsor = await telegram_user_service.get_telegram_user(
-            id=transaction.sponsor_id
+            id=transaction["sponsor_id"]
         )
-        sponsor.bill += transaction.quantity
-        # блок отправки сообщений спонсорам
-        try:
-            await callback.bot.send_message(
-                text=f"Вам подарок в размере <b>${int(transaction.quantity)}</b>\n",
-                chat_id=sponsor.user_id,
-            )
-        except TelegramAPIError:
-            pass
-
+        await telegram_user_service.update(
+            obj_id=sponsor.id,
+            obj_in={"bill": sponsor.bill + transaction["quantity"]},
+        )
+        messages.append((sponsor.user_id, transaction["quantity"]))
 
     await callback.message.delete()
 
     await callback.message.answer("🎉")
     await callback.message.answer("Уровень успешно активирован ✅")
+
+    for chat_id, quantity in messages:
+        try:
+            await callback.bot.send_message(
+                text=f"Вам подарок в размере <b>${quantity}</b>\n",
+                chat_id=chat_id,
+            )
+        except TelegramAPIError:
+            pass
 
 
 @donate_router.callback_query(F.data.startswith("transactions"))
@@ -450,7 +455,7 @@ async def get_transactions_list_to_me(
             )
             message += (
                 f"ID: {transaction.id}\n"
-                f"Сумма: ${int(transaction.quantity)}\n"
+                f"Сумма: ${transaction.quantity}\n"
                 f"От: @{user.username}\n"
                 f"Дата: {transaction.created_at}\n"
             )
@@ -508,7 +513,7 @@ async def get_transactions_list_from_me(
         for donate, transactions in donates:
             message += (
                 f"<b><u>Подарок на сумму: "
-                f"${int(donate.quantity)}</u></b>\n"
+                f"${donate.quantity}</u></b>\n"
                 f"ID: {donate.id}\n"
                 f"Дата: {donate.created_at}\n"
             )
@@ -584,7 +589,7 @@ async def get_all_transactions(
             )
             message += (
                 f"<b><u>Подарок на сумму: "
-                f"${int(donate.quantity)}</u></b>\n"
+                f"${donate.quantity}</u></b>\n"
                 f"ID: {donate.id}\n"
                 f"Дата: {donate.created_at}\n"
             )
@@ -597,7 +602,7 @@ async def get_all_transactions(
                     )
                     message += (
                         f"ID: {transaction.id}\n"
-                        f"Сумма: ${int(transaction.quantity)}\n"
+                        f"Сумма: ${transaction.quantity}\n"
                         f"От кого: @{user.username}\n"
                         f"Кому: @{sponsor.username}\n"
                     )

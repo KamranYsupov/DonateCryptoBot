@@ -1,36 +1,40 @@
 import asyncio
+import datetime
 import uuid
 
 import loguru
 from aiogram.exceptions import TelegramAPIError
+from dependency_injector.wiring import Provide, inject
 
 from app.models.matrix import Matrix
 from app.models.telegram_user import TelegramUser, statuses_colors_data
 from app.services.donate_confirm_service import DonateConfirmService
 from app.services.telegram_user_service import TelegramUserService
-from app.core import celery_app
 from app.keyboards.donate import get_donate_keyboard
 from app.loader import bot
-from app.tasks.const import (
-    loop
-)
 from app.models.telegram_user import DonateStatus, MatrixBuildType
 from app.core.config import settings
 from app.models.matrix import Matrix
 from app.schemas.telegram_user import generate_random_user
+from app.core.container import Container
+from app.services.donate_service import DonateService
+from app.services.matrix_service import MatrixService
+from app.services.matrix_service import AddBotToMatrixTaskModelService
+from app.db.commit_decorator import commit_and_close_session
+from app.core.container import Container
+from app.models.matrix import AddBotToMatrixTaskModel
 
 
+@inject
+@commit_and_close_session
 async def add_bot_to_matrix(
         matrix_id: uuid.UUID,
         donate_sum: int,
+        matrix_service: MatrixService = Provide[Container.matrix_service],
+        telegram_user_service: TelegramUserService = Provide[Container.telegram_user_service],
+        donate_service: DonateService = Provide[Container.donate_service],
+        donate_confirm_service: DonateConfirmService = Provide[Container.donate_confirm_service],
 ) -> None:
-    from app.core.container import Container
-
-    container = Container()
-    matrix_service = container.matrix_service()
-    telegram_user_service = container.telegram_user_service()
-    donate_service = container.donate_service()
-    donate_confirm_service = container.donate_confirm_service()
 
     matrix = await matrix_service.get_matrix(id=matrix_id)
     if len(matrix.telegram_users) >= 2:
@@ -65,33 +69,57 @@ async def add_bot_to_matrix(
     )
     bot_user.status = matrix.status
 
-    transactions = await donate_confirm_service.get_donate_transactions_by_donate_id(
-        donate_id=donate.id
+    transactions_data = await donate_confirm_service.get_donate_transactions_by_donate_id(
+        donate_id=donate.id, return_data=True,
     )
 
-    for transaction in transactions:
+    messages = []
+    for transaction in transactions_data:
         sponsor = await telegram_user_service.get_telegram_user(
-            id=transaction.sponsor_id
+            id=transaction["sponsor_id"]
         )
-        sponsor.bill += transaction.quantity
-        # блок отправки сообщений спонсорам
+        await telegram_user_service.update(
+            obj_id=sponsor.id,
+            obj_in={"bill": sponsor.bill + transaction["quantity"]},
+        )
+        messages.append((sponsor.user_id, transaction["quantity"]))
+
+    for chat_id, quantity in messages:
         try:
             await bot.send_message(
-                text=f"Вам подарок в размере <b>${int(transaction.quantity)}</b>\n",
-                chat_id=sponsor.user_id,
+                text=f"Вам подарок в размере <b>${quantity}</b>\n",
+                chat_id=chat_id,
             )
         except TelegramAPIError:
             pass
 
-@celery_app.task
-def add_bot_to_matrix_task(
-        matrix_id: uuid.UUID,
-        donate_sum: int,
-) -> None:
-    loop.run_until_complete(
-        add_bot_to_matrix(
-            matrix_id,
-            donate_sum,
-        )
-    )
 
+@inject
+async def execute_tasks(
+    add_bot_to_matrix_task_service: AddBotToMatrixTaskModelService = Provide[
+        Container.add_bot_to_matrix_task_service
+    ]
+):
+    now = datetime.datetime.now()
+    tasks = await add_bot_to_matrix_task_service.get_list(
+        AddBotToMatrixTaskModel.execute_at <= now, #+ datetime.timedelta(minutes=1),
+        is_executed=False,
+    )
+    tasks_data = [
+        {
+            "id": task.id,
+            "matrix_id": task.matrix_id,
+            "donate_sum": task.donate_sum,
+         }
+        for task in tasks
+    ]
+    tasks_ids = []
+
+    for task in tasks_data:
+        await add_bot_to_matrix(
+            matrix_id=task["matrix_id"],
+            donate_sum=task["donate_sum"],
+        )
+        tasks_ids.append(task["id"])
+
+    await add_bot_to_matrix_task_service.set_is_executed(tasks_ids, commit=True)

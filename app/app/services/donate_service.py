@@ -1,6 +1,6 @@
 import uuid
 from copy import copy
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Tuple, Any, Sequence
 
 import loguru
@@ -20,7 +20,8 @@ from app.utils.sort import get_reversed_dict
 from app.core.config import settings
 from app.utils.matrix import find_free_place_in_matrix, insert_into_matrices
 from app.utils.matrix import get_matrix_telegram_usernames_key
-from app.tasks.matrix import add_bot_to_matrix_task
+from app.repositories.matrix import RepositoryAddBotToMatrixTaskModel
+from app.schemas.matrix import AddBotToMatrixTaskEntity
 
 
 class DonateService:
@@ -29,10 +30,12 @@ class DonateService:
             repository_telegram_user: RepositoryTelegramUser,
             repository_matrix: RepositoryMatrix,
             repository_donate: RepositoryDonate,
+            repository_add_bot_to_matrix_task_model: RepositoryAddBotToMatrixTaskModel,
     ) -> None:
         self._repository_telegram_user = repository_telegram_user
         self._repository_matrix = repository_matrix
         self._repository_donate = repository_donate
+        self._repository_add_bot_to_matrix_task_model = repository_add_bot_to_matrix_task_model
 
     @staticmethod
     def get_donate_status(
@@ -55,6 +58,7 @@ class DonateService:
 
     @staticmethod
     def _extend_donations_data(data: dict, sponsor: TelegramUser, donate: int | float):
+        loguru.logger.info(str(donate))
         if data.get(sponsor):
             data[sponsor] += donate
         else:
@@ -138,7 +142,7 @@ class DonateService:
             free_place_path: list[str],
             matrix_telegram_usernames_path: list[str],
             parents: list[Matrix],
-    ) -> None:
+    ) -> Matrix:
         current_time = datetime.now()
         created_matrix_dict = {
             "owner_id": current_user.id,
@@ -160,8 +164,6 @@ class DonateService:
              matrix_to_add.telegram_users) = {}, {}, []
 
 
-        matrix_telegram_user_json_key = get_matrix_telegram_usernames_key(created_matrix)
-
         matrix_to_add_path_matrices = self._repository_matrix.get_matrices_by_ids_list(
             free_place_path, mapping=True
         )
@@ -173,20 +175,14 @@ class DonateService:
             free_place_level,
             str(created_matrix.id),
         )
-        insert_into_matrices(
-            matrix_to_add.matrix_telegram_usernames,
-            matrix_telegram_usernames_path,
-            free_place_level,
-            matrix_telegram_user_json_key,
-        )
 
         child_matrix_free_level = free_place_level
         child_matrix_path = copy(free_place_path)
-        child_matrix_telegram_usernames_path = copy(matrix_telegram_usernames_path)
+
         for path_matrix in matrix_to_add_path_matrices:
+
             child_matrix_free_level -= 1
             child_matrix_path.remove(str(path_matrix.id))
-            child_matrix_telegram_usernames_path.remove(get_matrix_telegram_usernames_key(path_matrix))
 
             path_matrix.telegram_users.append(current_user.user_id)
             insert_into_matrices(
@@ -194,20 +190,10 @@ class DonateService:
                 child_matrix_path,
                 child_matrix_free_level,
                 str(created_matrix.id),
-            ),
-            insert_into_matrices(
-                path_matrix.matrix_telegram_usernames,
-                child_matrix_telegram_usernames_path,
-                child_matrix_free_level,
-                matrix_telegram_user_json_key,
             )
 
         parent_matrix_free_level = free_place_level
         parent_matrix_path = [str(matrix_to_add.id)] + free_place_path
-        parent_matrix_telegram_usernames_path = [
-            get_matrix_telegram_usernames_key(matrix_to_add)
-        ] + matrix_telegram_usernames_path
-
 
         for parent_matrix in parents:
             parent_matrix_free_level += 1
@@ -220,17 +206,7 @@ class DonateService:
                 str(created_matrix.id),
             )
 
-            insert_into_matrices(
-                parent_matrix.matrix_telegram_usernames,
-                parent_matrix_telegram_usernames_path,
-                parent_matrix_free_level,
-                matrix_telegram_user_json_key,
-            ),
-
             parent_matrix_path = [str(parent_matrix.id)] + parent_matrix_path
-            parent_matrix_telegram_usernames_path = [
-                get_matrix_telegram_usernames_key(parent_matrix)
-            ] + parent_matrix_telegram_usernames_path
 
         return created_matrix
 
@@ -319,14 +295,27 @@ class DonateService:
             parents,
         )
 
-        if False:
-            add_bot_to_matrix_task.apply_async(
-                args=[created_matrix.id, donate_sum],
-                countdown=settings.add_bot_to_matrix_1_countdown_minutes #* 60
+        if start_bot_tasks:
+            now = datetime.now()
+            task_data = dict(
+                matrix_id=created_matrix.id,
+                donate_sum=donate_sum,
             )
-            add_bot_to_matrix_task.apply_async(
-                args=[created_matrix.id, donate_sum],
-                countdown=settings.add_bot_to_matrix_2_countdown_minutes #* 60
+            self._repository_add_bot_to_matrix_task_model.create(
+                AddBotToMatrixTaskEntity(
+                    execute_at=now + timedelta(
+                        seconds=settings.add_bot_to_matrix_1_countdown_minutes
+                    ),
+                    **task_data,
+                )
+            )
+            self._repository_add_bot_to_matrix_task_model.create(
+                AddBotToMatrixTaskEntity(
+                    execute_at=now + timedelta(
+                        seconds=settings.add_bot_to_matrix_2_countdown_minutes
+                    ),
+                    **task_data,
+                )
             )
 
 

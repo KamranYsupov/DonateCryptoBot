@@ -101,10 +101,32 @@ class DonateConfirmService:
             output_dict[donate] = donate_transactions
         return output_dict
 
-    async def get_donate_transactions_by_donate_id(self, donate_id: uuid.UUID):
-        return self._repository_donate_transaction.list(
+    async def get_donate_transactions_by_donate_id(
+            self,
+            donate_id: uuid.UUID,
+            return_data: bool = False,
+    ):
+        transactions = self._repository_donate_transaction.list(
             donate_id=donate_id,
         )
+
+        if not return_data:
+            return transactions
+
+        if not transactions:
+            return []
+
+        return [
+            {
+                "id": transaction.id,
+                "sponsor_id": transaction.sponsor_id,
+                "donate_id": transaction.donate_id,
+                "quantity": transaction.quantity,
+                "created_at": transaction.created_at,
+                "updated_at": transaction.updated_at,
+            }
+            for transaction in transactions
+        ]
 
     async def get_all_donates_and_transactions(
             self,

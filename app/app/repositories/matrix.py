@@ -1,12 +1,12 @@
 import uuid
 
 import loguru
-from sqlalchemy import select, cast, func, BigInteger, any_
+from sqlalchemy import select, cast, func, BigInteger, any_, update
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.telegram_user import TelegramUser, DonateStatus
 from .base import RepositoryBase
-from app.models.matrix import Matrix
+from app.models.matrix import Matrix, AddBotToMatrixTaskModel
 
 from ..models.telegram_user import MatrixBuildType
 
@@ -67,8 +67,8 @@ class RepositoryMatrix(RepositoryBase[Matrix]):
 
     def get_owner_ids_by_matrices_ids_list(
             self,
-            matrices_ids: list[Matrix.id]
-    ) -> list[Matrix.owner_id]:
+            matrices_ids: list[uuid.UUID]
+    ) -> list[uuid.UUID]:
         if not matrices_ids:
             return []
 
@@ -81,6 +81,19 @@ class RepositoryMatrix(RepositoryBase[Matrix]):
 
         return [mapping[str(i)] for i in matrices_ids]
 
+
+class RepositoryAddBotToMatrixTaskModel(RepositoryBase[AddBotToMatrixTaskModel]):
+
+    def set_is_executed(self, ids: list[uuid.UUID], commit: bool = False):
+        statement = (
+            update(AddBotToMatrixTaskModel)
+            .where(AddBotToMatrixTaskModel.id.in_(ids))
+            .values(is_executed=True)
+        )
+        self._session.execute(statement)
+
+        if commit:
+            self._session.commit()
 
 
 

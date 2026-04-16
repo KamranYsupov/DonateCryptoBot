@@ -52,8 +52,6 @@ class RepositoryBase(Generic[ModelType,]):
         )
         self._session.execute(statement)
 
-        return self._session.get(self._model, obj_id)
-
     def delete(self, *args, obj_id: UUID, **kwargs) -> None:
         statement = delete(self._model).where(self._model.id == obj_id)
         self._session.execute(statement)

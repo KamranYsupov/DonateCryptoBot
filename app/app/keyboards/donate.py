@@ -28,7 +28,7 @@ def get_donations_keyboard(
         for status in status_list[1:]:
             donate_sum = status.get_status_donate_value()
             button_text = \
-                f"🔴{status.value} - ${int(donate_sum)}🔴"
+                f"🔴{status.value} - ${donate_sum}🔴"
             buttons[button_text] = \
                 f"confirm_donate_🔴_{donate_sum}"
 

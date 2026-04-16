@@ -34,7 +34,7 @@ def get_donate_confirm_message(
     )
 
     message_text = (
-        f"💌 Участник получил 🎁 ${int(donate_sum)}\n\n"
+        f"💌 Участник получил 🎁 ${donate_sum}\n\n"
         f"🛗 Уровень: {status}\n\n"
         "🤝 Будем «НА СВЯЗИ»"
     )

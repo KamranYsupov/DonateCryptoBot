@@ -114,3 +114,6 @@ class TelegramUserService:
                 **kwargs,
             )
         )
+
+    async def update(self, obj_id: uuid.UUID, obj_in):
+        return self._repository_telegram_user.update(obj_id=obj_id, obj_in=obj_in)

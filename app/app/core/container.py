@@ -23,6 +23,9 @@ from app.services.matrix_service import MatrixService
 from app.services.donate_service import DonateService
 from app.services.crypto_bot_api_service import CryptoBotAPIService
 from app.services.withdrawal_request import WithdrawalRequestService
+from app.models.matrix import AddBotToMatrixTaskModel
+from app.repositories.matrix import RepositoryAddBotToMatrixTaskModel
+from app.services.matrix_service import AddBotToMatrixTaskModelService
 
 
 class Container(containers.DeclarativeContainer):
@@ -36,9 +39,11 @@ class Container(containers.DeclarativeContainer):
             "app.handlers.payments",
             "app.handlers.withdrawal_request",
             "app.handlers.transfer",
+            "app.handlers.worker",
             "app.middlewares.ban_user",
             "app.middlewares.subscriptions",
             "app.tasks.donate",
+            "app.tasks.matrix",
             "app.utils.excel",
         ]
     )
@@ -73,6 +78,9 @@ class Container(containers.DeclarativeContainer):
     repository_withdrawal_request = providers.Factory(
         RepositoryWithdrawalRequest, model=WithdrawalRequest, session=session
     )
+    repository_add_bot_to_matrix_task = providers.Factory(
+        RepositoryAddBotToMatrixTaskModel, model=AddBotToMatrixTaskModel, session=session
+    )
     # endregion
 
     # region services
@@ -89,6 +97,7 @@ class Container(containers.DeclarativeContainer):
         repository_telegram_user=repository_telegram_user,
         repository_matrix=repository_matrix,
         repository_donate=repository_donate,
+        repository_add_bot_to_matrix_task_model=repository_add_bot_to_matrix_task,
     )
     donate_confirm_service = providers.Factory(
         DonateConfirmService,
@@ -104,5 +113,9 @@ class Container(containers.DeclarativeContainer):
     withdrawal_request_service = providers.Factory(
         WithdrawalRequestService,
         repository_withdrawal_request=repository_withdrawal_request,
+    )
+    add_bot_to_matrix_task_service = providers.Factory(
+        AddBotToMatrixTaskModelService,
+        repository_add_bot_to_matrix_task=repository_add_bot_to_matrix_task,
     )
     # endregion

@@ -16,5 +16,5 @@ class MatrixEntity(BaseModel):
 class AddBotToMatrixTaskEntity(BaseModel):
     execute_at: datetime
     is_executed: bool = False
-    donate_sum: int
+    donate_sum: int | float
     matrix_id: uuid.UUID
