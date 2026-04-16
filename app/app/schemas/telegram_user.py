@@ -1,3 +1,4 @@
+import enum
 import random
 
 from pydantic import BaseModel, Field
@@ -18,12 +19,17 @@ class TelegramUserEntity(BaseModel):
     )
     invites_count: int = Field(title="Число приглашений", default=0)
     donates_sum: int = Field(title="Сумма донатов", default=0)
-    bill: int = Field(title="Счет", default=0)
+    bill_for_activation: int = Field(title="Счет для активации", default=0)
+    bill_for_withdraw: int = Field(title="Счет для вывода", default=0)
     is_bot: bool = Field(title="Бот", default=False)
     is_admin: bool = Field(title="Супер пользователь", default=False)
     depth_level: int = Field(title="Уровень глубины")
     is_banned: bool = Field(title="Заблокирован", default=False)
 
+
+class BillType(enum.Enum):
+    ACTIVATION = "activation"
+    WITHDRAW = "withdraw"
 
 
 def generate_random_user():

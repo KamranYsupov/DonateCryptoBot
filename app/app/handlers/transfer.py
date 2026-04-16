@@ -17,22 +17,42 @@ from app.keyboards.donate import get_donations_keyboard
 from app.db.commit_decorator import commit_and_close_session
 from app.services.crypto_bot_api_service import CryptoBotAPIService
 from app.keyboards.reply import reply_cancel_keyboard, get_reply_keyboard
+from app.schemas.telegram_user import BillType
 
 transfer_router = Router()
 
 class TransferState(StatesGroup):
+    bill_type = State()
     receiver_username = State()
     tokens_count = State()
     confirm = State()
 
 
-@transfer_router.message(Command("transfer"))
-async def transfer_command_handler(
-        message: CallbackQuery,
+@transfer_router.callback_query(F.data.startswith("transfer_"))
+@inject
+async def transfer_callback_handler(
+        callback: CallbackQuery,
         state: FSMContext,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
 ) -> None:
+    bill_type = callback.data.split("_")[-1]
+
+    telegram_user = await telegram_user_service.get_telegram_user(
+        user_id=callback.from_user.id
+    )
+    bill_value = getattr(telegram_user, f"bill_for_{bill_type}")
+
+    if not bill_value:
+        await callback.message.edit_text("Баланс равен нулю.",)
+        return
+
+    await state.update_data(bill_type=bill_type)
     await state.set_state(TransferState.receiver_username)
-    await message.answer(
+
+    await callback.message.delete()
+    await callback.message.answer(
         "Отправьте username получателя.",
         reply_markup=reply_cancel_keyboard,
     )
@@ -65,7 +85,6 @@ async def process_receiver_username(
     )
 
 
-
 @transfer_router.message(F.text, TransferState.tokens_count)
 @inject
 async def process_tokens_count(
@@ -84,13 +103,24 @@ async def process_tokens_count(
         )
         return
 
+    state_data = await state.get_data()
+    bill_type = state_data["bill_type"]
+
     telegram_user = await telegram_user_service.get_telegram_user(
         user_id=message.from_user.id
     )
+    bill_value = getattr(telegram_user, f"bill_for_{bill_type}")
 
-    if tokens_count > telegram_user.bill:
+    if not bill_value:
+        await state.clear()
         await message.answer(
-            "❌ Некорректный ввод. Число превышает сумму на счетё."
+            "❌ Некорректный ввод. Баланс равен нулю.",
+            reply_markup=get_reply_keyboard(telegram_user),
+        )
+        return
+    if tokens_count > bill_value:
+        await message.answer(
+            "❌ Некорректный ввод. Число превышает сумму на балансе."
         )
         return
 
@@ -105,7 +135,7 @@ async def process_tokens_count(
         "Вы уверены?",
         reply_markup=get_donate_keyboard(
             buttons={
-                "Да": f"transfer",
+                "Да": f"confirm_transfer",
                 "Нет": "cancel",
             },
             sizes=(1, 1)
@@ -115,7 +145,7 @@ async def process_tokens_count(
     await state.set_state(TransferState.confirm)
 
 
-@transfer_router.callback_query(F.data == "transfer", TransferState.confirm)
+@transfer_router.callback_query(F.data == "confirm_transfer", TransferState.confirm)
 @inject
 @commit_and_close_session
 async def transfer_tokens_handler(
@@ -127,21 +157,24 @@ async def transfer_tokens_handler(
 ) -> None:
     state_data = await state.get_data()
     tokens_count = state_data["tokens_count"]
+    bill_type = state_data["bill_type"]
+    bill_field = f"bill_for_{bill_type}"
 
     sender = await telegram_user_service.get_telegram_user(user_id=callback.from_user.id)
     receiver = await telegram_user_service.get_telegram_user(username=state_data["receiver_username"])
 
+    sender_bill_value = getattr(sender, bill_field)
     await state.clear()
 
-    if tokens_count > sender.bill:
+    if tokens_count > sender_bill_value:
         await callback.message.edit_text(
-            "❌ Число превышает сумму на счетё.",
+            "❌ Число превышает сумму на балансе.",
             reply_markup=get_reply_keyboard(sender),
         )
         return
 
-    sender.bill -= tokens_count
-    receiver.bill += tokens_count
+    setattr(sender, bill_field, sender_bill_value - tokens_count)
+    receiver.bill_for_activation += tokens_count
 
     await callback.message.delete()
     await callback.message.answer(

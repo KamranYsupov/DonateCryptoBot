@@ -40,6 +40,7 @@ class Container(containers.DeclarativeContainer):
             "app.handlers.withdrawal_request",
             "app.handlers.transfer",
             "app.handlers.worker",
+            "app.handlers.bill_type",
             "app.middlewares.ban_user",
             "app.middlewares.subscriptions",
             "app.tasks.donate",

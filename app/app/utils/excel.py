@@ -33,7 +33,8 @@ async def export_users_to_excel(
             "Логин тг пригласителя": user.sponsor,
             "Статус": user.status.value,
             "Кол-во приглашенных": user.invites_count,
-            "Общий доход": user.bill,
+            "Баланс для активации": user.bill_for_activation,
+            "Баланс для вывода": user.bill_for_withdraw,
             "Tg ID": user.user_id,
             "Дата время регистрации": \
                 user.created_at.strftime("%d.%m.%Y %H:%M")

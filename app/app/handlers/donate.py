@@ -162,17 +162,17 @@ async def donations_menu_handler(
 
     if current_user.is_admin:
         users = await telegram_user_service.get_list()
-        bills_sum = await telegram_user_service.get_bills_sum()
         statuses_statistic_message = get_user_statuses_statistic_message(
             users,
         )
         message_text = (
             f"Партнеров в «НА СВЯЗИ»: <b>{len(users)}</b>\n"
-            f"Всего подарили: <b>${bills_sum}</b>\n\n"
-            f"{statuses_statistic_message}\n"
+            f"\n{statuses_statistic_message}\n"
             f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
-            f"Количество токенов: "
-            f"<b>{current_user.bill}</b>\n"
+            f"Баланс для активации: "
+            f"<b>{current_user.bill_for_activation}</b>\n"
+            "Баланс для вывода: "
+            f"<b>{current_user.bill_for_withdraw}</b>\n"
         )
         buttons = default_buttons
         admin_buttons = {
@@ -202,13 +202,15 @@ async def donations_menu_handler(
         ))
     )
     message_text = (
-            f"Ваш спонсор: "
+            f"Мой куратор: "
             + ("@" + sponsor.username if sponsor.username else sponsor.first_name)
             + "\n"
               f"Мой статус: <b>{current_user.status.value}</b>\n"
               f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
-              f"Количество токенов: "
-              f"<b>{current_user.bill}</b>\n"
+              f"Баланс для активации: "
+              f"<b>{current_user.bill_for_activation}</b>\n"
+              "Баланс для вывода: "
+              f"<b>{current_user.bill_for_withdraw}</b>\n"
     )
 
     buttons.update(default_buttons)
@@ -244,7 +246,7 @@ async def export_users_to_excel_callback_handler(
     os.remove(file_name)
 
 
-@donate_router.callback_query(F.data.startswith("confirm_donate_"))
+@donate_router.callback_query(F.data.startswith("send_donate_"))
 @inject
 @commit_and_close_session
 async def confirm_donate(
@@ -253,17 +255,16 @@ async def confirm_donate(
             Container.telegram_user_service
         ],
 ) -> None:
-    if "🔴" in callback.data.split("_"):
-        return
 
     callback_donate_data = "_".join(callback.data.split("_")[1:])
-    donate_sum = float(callback_donate_data.split("_")[-1])
+    await callback.answer(str(callback_donate_data))
+    donate_sum = float(callback_donate_data.split("_")[-2])
+    bill_type = callback_donate_data.split("_")[-1]
     current_user = await telegram_user_service.get_telegram_user(
         user_id=callback.from_user.id
     )
 
-
-    need_to_buy_tokens = current_user.bill - donate_sum
+    need_to_buy_tokens = getattr(current_user, f"bill_for_{bill_type}") - donate_sum
     if need_to_buy_tokens < 0:
         need_to_buy_tokens = int(abs(need_to_buy_tokens))
         await callback.message.edit_text(
@@ -281,7 +282,7 @@ async def confirm_donate(
 
 
     await callback.message.edit_text(
-        text=f"Для активации уровня с вашего счета спишется <b>{donate_sum}</b> токенов.\n\n"
+        text=f"Для активации уровня с вашего баланса спишется <b>{donate_sum}</b> токенов.\n\n"
              "<b>Вы согласны продолжить?</b>",
         parse_mode="HTML",
         reply_markup=get_donate_keyboard(
@@ -307,7 +308,8 @@ async def donate_handler(
             Container.donate_confirm_service
         ],
 ) -> None:
-    donate_sum = int(callback.data.split("_")[-1])
+    bill_type = callback.data.split("_")[-1]
+    donate_sum = int(callback.data.split("_")[-2])
 
     status = donate_service.get_donate_status(donate_sum)
     current_user = await telegram_user_service.get_telegram_user(
@@ -328,10 +330,6 @@ async def donate_handler(
         user_id=current_user.sponsor_user_id
     )
     donations_data = {}
-    if first_sponsor.status != DonateStatus.NOT_ACTIVE:
-        donations_data.update({
-            first_sponsor: donate_sum * settings.sponsor_donate_percent / 100
-        })
 
     matrix = await donate_service.handle_matrix_activation(
         first_sponsor,
@@ -347,7 +345,13 @@ async def donate_handler(
         matrix_id=matrix.id,
         quantity=donate_sum,
     )
-    current_user.bill -= donate_sum
+
+    bill_field = f"bill_for_{bill_type}"
+    bill_value = getattr(current_user, bill_field)
+    await telegram_user_service.update(
+        obj_id=current_user.id,
+        obj_in={bill_field: bill_value - donate_sum},
+    )
 
     if current_user.status == DonateStatus.NOT_ACTIVE or (
         int(status.get_status_donate_value())
@@ -365,7 +369,7 @@ async def donate_handler(
         )
         await telegram_user_service.update(
             obj_id=sponsor.id,
-            obj_in={"bill": sponsor.bill + transaction["quantity"]},
+            obj_in={"bill_for_withdraw": sponsor.bill_for_withdraw + transaction["quantity"]},
         )
         messages.append((sponsor.user_id, transaction["quantity"]))
 
@@ -384,7 +388,7 @@ async def donate_handler(
             pass
 
 
-@donate_router.callback_query(F.data.startswith("transactions"))
+@donate_router.callback_query(F.data == "transactions")
 @inject
 async def get_transactions_menu(
         callback: CallbackQuery,
@@ -459,16 +463,6 @@ async def get_transactions_list_to_me(
                 f"От: @{user.username}\n"
                 f"Дата: {transaction.created_at}\n"
             )
-            message += "<b>ОТМЕНЕНА ❌</b>\n" if transaction.is_canceled else ''
-            message += (
-                "Подтверждена: " +
-                ("Да" if transaction.is_confirmed else "<b>Нет</b>") +
-                "\n\n"
-            )
-            if not transaction.is_confirmed and not transaction.is_canceled:
-                buttons[f"Подтвердить {transaction.id}"] = (
-                    f"firsttran_{page_number}_{transaction.id}"
-                )
     else:
         message = "У вас нет транзакций"
 
@@ -516,12 +510,6 @@ async def get_transactions_list_from_me(
                 f"${donate.quantity}</u></b>\n"
                 f"ID: {donate.id}\n"
                 f"Дата: {donate.created_at}\n"
-            )
-            message += "<b>ОТМЕНЕН ❌</b>\n" if donate.is_canceled else ''
-            message += (
-                "Подтвержден: " +
-                ("Да" if donate.is_confirmed else "<b>Нет</b>") +
-                "\n\n"
             )
 
             if transactions:
@@ -593,7 +581,6 @@ async def get_all_transactions(
                 f"ID: {donate.id}\n"
                 f"Дата: {donate.created_at}\n"
             )
-            message += "<b>ОТМЕНЕН ❌</b>\n\n" if donate.is_canceled else ''
             message += "Транзакции по подарку: \n\n"
             if transactions:
                 for transaction in transactions:
@@ -606,15 +593,6 @@ async def get_all_transactions(
                         f"От кого: @{user.username}\n"
                         f"Кому: @{sponsor.username}\n"
                     )
-                    message += (
-                        "Подтверждена: " +
-                        ("Да" if transaction.is_confirmed else "<b>Нет</b>") +
-                        "\n\n"
-                    )
-                    if not transaction.is_confirmed and not transaction.is_canceled:
-                        buttons[f"Подтвердить {transaction.id}"] = (
-                            f"firstadmin_{page_number}_{transaction.id}"
-                        )
 
     buttons["🔙 Назад"] = f"transactions"
     await callback.message.edit_text(

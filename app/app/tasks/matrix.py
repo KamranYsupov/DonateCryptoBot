@@ -80,7 +80,7 @@ async def add_bot_to_matrix(
         )
         await telegram_user_service.update(
             obj_id=sponsor.id,
-            obj_in={"bill": sponsor.bill + transaction["quantity"]},
+            obj_in={"bill_for_withdraw": sponsor.bill_for_withdraw + transaction["quantity"]},
         )
         messages.append((sponsor.user_id, transaction["quantity"]))
 

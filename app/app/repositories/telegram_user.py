@@ -63,7 +63,7 @@ class RepositoryTelegramUser(RepositoryBase[TelegramUser]):
             **kwargs
     ) -> list[int]:
         statement = (
-            select(TelegramUser.bill)
+            select(TelegramUser.bill_for_activation)
             .filter(*args)
             .filter_by(**kwargs)
         )

@@ -9,6 +9,8 @@ from .payments import payment_router
 from .withdrawal_request import withdrawal_requests_router
 from .transfer import transfer_router
 from .worker import worker_router
+from .bill_type import bill_type_router
+
 
 def get_all_routers() -> Router:
     """Функция для регистрации всех router"""
@@ -23,5 +25,6 @@ def get_all_routers() -> Router:
     router.include_router(withdrawal_requests_router)
     router.include_router(transfer_router)
     router.include_router(worker_router)
+    router.include_router(bill_type_router)
 
     return router

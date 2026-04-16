@@ -108,9 +108,9 @@ async def process_tokens_count(
         user_id=message.from_user.id
     )
 
-    if tokens_count > telegram_user.bill:
+    if tokens_count > telegram_user.bill_for_withdraw:
         await message.answer(
-            "❌ Некорректный ввод. Число превышает сумму на счетё."
+            "❌ Некорректный ввод. Число превышает сумму на балансе."
         )
         return
 
@@ -120,7 +120,7 @@ async def process_tokens_count(
     await message.answer("✍️", reply_markup=get_reply_keyboard(telegram_user))
     await message.answer(
         "Вы уверены? "
-        "После создания заявки указанное число токенов спишется с вашего счета.",
+        "После создания заявки указанное число токенов спишется с вашего баланса.",
         reply_markup=get_donate_keyboard(
             buttons={
                 "Да": f"send_withdrawal_request",
@@ -153,9 +153,9 @@ async def send_withdrawal_request_handler(
 
     state_data = await state.get_data()
 
-    if state_data["tokens_count"] > telegram_user.bill:
+    if state_data["tokens_count"] > telegram_user.bill_for_withdraw:
         await callback.message.edit_text(
-            "❌ Число токенов превышает сумму на счетё.",
+            "❌ Число токенов превышает сумму на балансе.",
         )
         await state.clear()
         return

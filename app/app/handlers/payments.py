@@ -160,11 +160,11 @@ async def check_invoice_handler(
         payload = json.loads(current_invoice["payload"])
         telegram_user = await telegram_user_service.get_telegram_user(user_id=payload["telegram_id"])
         tokens_count = payload["tokens_count"]
-        telegram_user.bill += tokens_count
+        telegram_user.bill_for_activation += tokens_count
         await callback.message.delete()
         await callback.message.answer("Оплата прошла успешно ✅")
         await callback.message.answer(
-            f"На счет зачислено {tokens_count} токенов.",
+            f"На баланс зачислено {tokens_count} токенов.",
             reply_markup=get_donate_keyboard(buttons={"⚡️ Активация": "donations"})
         )
         return
