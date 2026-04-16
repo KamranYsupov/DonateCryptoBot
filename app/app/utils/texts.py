@@ -4,6 +4,7 @@ from collections import deque
 import uuid
 
 from aiogram import html
+from dependency_injector.wiring import inject, Provide
 
 from app.models.telegram_user import (
     DonateStatus,
@@ -21,6 +22,9 @@ from app.models.matrix import Matrix
 from app.core.config import Settings
 from app.models.matrix import Matrix
 from app.models.withdrawal_request import WithdrawalRequest
+from app.core.container import Container
+from app.models.donate import DonateTransactionType
+from app.services.donate_service import DonateService
 
 
 def get_donate_confirm_message(
@@ -184,3 +188,22 @@ def get_matrix_info_message(
     lines.append(f"\nВсего участников: <b>{len(matrix.telegram_users)}</b>\n")
 
     return "\n".join(lines)
+
+def get_transaction_message(
+        quantity: float | int,
+        type_: DonateTransactionType,
+        sender: TelegramUser,
+        status: DonateStatus,
+) -> str:
+    if type_ == DonateTransactionType.SYSTEM:
+        return f"Системный аккаунт <b>${quantity}</b>."
+
+    template = "Вам подарок <b>${0}</b> {1}площадка {2}."
+
+    sponsor_text = (
+        f"от партнера первой линии @{sender.username} "
+        if type_ == DonateTransactionType.SPONSOR else ""
+    )
+
+    return template.format(quantity, sponsor_text, status.value)
+

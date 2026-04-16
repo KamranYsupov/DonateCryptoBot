@@ -1,5 +1,6 @@
 import enum
 import random
+import uuid
 
 from pydantic import BaseModel, Field
 
@@ -34,8 +35,8 @@ class BillType(enum.Enum):
 
 def generate_random_user():
     return TelegramUserEntity(
-        user_id=random.randint(1, 1000),
-        username=f"user_{random.randint(1, 1000)}",
+        user_id=random.randint(1, 100000000),
+        username=f"user_{random.randint(1, 100000000)}",
         first_name=f"User{random.randint(1, 100)}",
         last_name=f"LastName{random.randint(1, 100)}",
         depth_level=0,

@@ -22,6 +22,7 @@ from app.utils.matrix import find_free_place_in_matrix, insert_into_matrices
 from app.utils.matrix import get_matrix_telegram_usernames_key
 from app.repositories.matrix import RepositoryAddBotToMatrixTaskModel
 from app.schemas.matrix import AddBotToMatrixTaskEntity
+from app.models.donate import DonateTransactionType
 
 
 class DonateService:
@@ -88,11 +89,11 @@ class DonateService:
             self,
             matrix: Matrix,
             donate_sum: int | float,
-            donations_data: dict,
+            donations_data: list,
             free_place_path: list[uuid.UUID],
             parents: list[Matrix],
             is_bot: bool,
-    ) -> dict[uuid.UUID, int | float]:
+    ) -> list[dict[str, Any]]:
         matrix_donate_sum = donate_sum * settings.matrix_donate_percent / 100
         parents_owners_ids = [parent.owner_id for parent in parents]
 
@@ -115,22 +116,29 @@ class DonateService:
             if receiver.status == DonateStatus.NOT_ACTIVE:
                 continue
 
-            self._extend_donations_data(
-                donations_data,
-                receiver,
-                matrix_donate_sum,
-            )
+            donations_data.append({
+                "receiver": receiver,
+                "quantity": matrix_donate_sum,
+                "type_": DonateTransactionType.MATRIX,
+            })
+
 
         if is_bot:
             return donations_data
 
-        receivers_donate_sum = sum(list(donations_data.values()))
-        admin_user = self._repository_telegram_user.get(is_admin=True)
-        self._extend_donations_data(
-            donations_data,
-            admin_user,
-            donate_sum - receivers_donate_sum,
+        donate_reminder = (
+                donate_sum - (
+                len(donate_receivers) * matrix_donate_sum
+                + donate_sum * settings.sponsor_donate_percent / 100
+            )
         )
+        if donate_reminder:
+            admin_user = self._repository_telegram_user.get(is_admin=True)
+            donations_data.append({
+                "receiver": admin_user,
+                "quantity": donate_reminder,
+                "type_": DonateTransactionType.SYSTEM,
+            })
 
         return donations_data
 
@@ -140,7 +148,6 @@ class DonateService:
             current_user: TelegramUser,
             free_place_level: int,
             free_place_path: list[str],
-            matrix_telegram_usernames_path: list[str],
             parents: list[Matrix],
     ) -> Matrix:
         current_time = datetime.now()
@@ -215,7 +222,7 @@ class DonateService:
             first_sponsor: TelegramUser,
             current_user: TelegramUser,
             donate_sum: int,
-            donations_data: dict,
+            donations_data: list,
             status: DonateStatus,
             level_length: int = settings.level_length,
             found_matrix: Matrix | None = None
@@ -230,6 +237,13 @@ class DonateService:
                 start_bot_tasks=False,
             )
             return found_matrix
+
+        if first_sponsor.status != DonateStatus.NOT_ACTIVE:
+            donations_data.append({
+                "receiver": first_sponsor,
+                "quantity": donate_sum * settings.sponsor_donate_percent / 100,
+                "type_": DonateTransactionType.SPONSOR,
+            })
 
         first_sponsor_matrices = self._repository_matrix.get_user_matrices(
             owner_id=first_sponsor.id,
@@ -262,7 +276,7 @@ class DonateService:
             free_matrix: Matrix,
             current_user: TelegramUser,
             donate_sum: int | float,
-            donations_data: dict,
+            donations_data: list,
             level_length: int = settings.level_length,
             start_bot_tasks: bool = True
     ):
@@ -282,16 +296,11 @@ class DonateService:
             is_bot=current_user.is_bot,
         )
 
-        matrix_telegram_usernames_path = find_free_place_in_matrix(
-            free_matrix.matrix_telegram_usernames,
-            level_length
-        )
         created_matrix = await self.add_to_matrix(
             free_matrix,
             current_user,
             free_place_level,
             free_place_path,
-            matrix_telegram_usernames_path,
             parents,
         )
 
@@ -324,7 +333,7 @@ class DonateService:
             user_to_add: TelegramUser,
             donate_sum: int | float,
             status: DonateStatus,
-            donations_data: dict,
+            donations_data: list,
             level_length: int,
     ):
 
@@ -357,100 +366,6 @@ class DonateService:
                     )
                     return matrix
 
-
-    def check_is_matrix_free_with_donates(
-            self,
-            matrix: Matrix,
-            status: DonateStatus
-    ):
-        current_matrix = matrix
-        level_length = 2
-        second_level_length = level_length * level_length
-
-        first_level_current_matrix_length = len(list(current_matrix.matrices.keys()))
-        current_matrix_donates_count = self._repository_donate.get_count(
-            matrix_id=current_matrix.id,
-            is_confirmed=False,
-            is_canceled=False,
-        )
-
-        if first_level_current_matrix_length < level_length:
-            first_level_empty_places_count = level_length - first_level_current_matrix_length
-
-            if first_level_empty_places_count <= current_matrix_donates_count:
-                return False
-
-            parent_matrix = self._repository_matrix.get_parent_matrix(
-                matrix_id=current_matrix.id,
-                status=status,
-            )
-            if not parent_matrix:
-                return True
-            parent_first_level_matrices = self._repository_matrix.get_matrices_by_ids_list(
-                matrices_ids=list(parent_matrix.matrices.keys())
-            )
-
-            sorted_parent_first_level_matrices = sorted(
-                parent_first_level_matrices,
-                key=lambda x: x.created_at,
-            )
-            current_matrix_index = sorted_parent_first_level_matrices.index(current_matrix)
-
-            p_matrix_max_length_till_current_matrix = (
-                (level_length * (current_matrix_index + 1)) + level_length
-            )
-            p_matrix_length_till_current_matrix = len(parent_first_level_matrices)
-
-            for parent_first_level_matrix in sorted_parent_first_level_matrices[:current_matrix_index + 1]:
-                p_matrix_length_till_current_matrix += len(list(parent_first_level_matrix.matrices.keys()))
-
-            p_matrix_empty_places_count_till_current_matrix = (
-                p_matrix_max_length_till_current_matrix - p_matrix_length_till_current_matrix
-            )
-            donate_matrices_ids = [
-                matrix.id for matrix in parent_first_level_matrices[:current_matrix_index]
-                if len(list(matrix.matrices.keys())) < level_length
-            ]
-            donate_matrices_ids.append(parent_matrix.id)
-
-            matrices_donates = self._repository_donate.get_donates_by_matrices_ids(
-                matrices_ids=donate_matrices_ids,
-                is_confirmed=False,
-                is_canceled=False,
-            )
-            total_donates_count = len(matrices_donates) + current_matrix_donates_count
-
-            if p_matrix_empty_places_count_till_current_matrix <= total_donates_count:
-                return False
-
-            return True
-
-        # !!!!!!!!!!!!!!!!!!
-        second_level_current_matrix_length = len(current_matrix.telegram_users) - settings.level_length
-        second_level_empty_places_count = second_level_length - second_level_current_matrix_length
-
-        if second_level_empty_places_count <= current_matrix_donates_count:
-            return False
-
-        first_level_matrices = self._repository_matrix.get_matrices_by_ids_list(
-            matrices_ids=list(matrix.matrices.keys())
-        )
-        sorted_first_level_matrices = sorted(first_level_matrices, key=lambda x: x.created_at)
-
-        donate_first_level_matrices_ids = [
-            matrix.id for matrix in sorted_first_level_matrices
-            if len(list(matrix.matrices.keys())) < level_length
-        ]
-        first_level_matrices_donates = self._repository_donate.get_donates_by_matrices_ids(
-            matrices_ids=donate_first_level_matrices_ids,
-            is_confirmed=False,
-            is_canceled=False,
-        )
-        total_donates_count = len(first_level_matrices_donates) + current_matrix_donates_count
-        if second_level_empty_places_count <= total_donates_count:
-            return False
-
-        return True
 
 
 

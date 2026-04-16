@@ -1,7 +1,8 @@
 import uuid
 
 from pydantic import BaseModel, Field
-from app.models.telegram_user import MatrixBuildType
+
+from app.models.donate import DonateTransactionType
 
 
 class DonateEntity(BaseModel):
@@ -16,3 +17,4 @@ class DonateTransactionEntity(BaseModel):
     sponsor_id: uuid.UUID = Field(title="ID спонсора")
     donate_id: uuid.UUID = Field(title="ID доната")
     quantity: float = Field(title="Размер доната")
+    type_: DonateTransactionType

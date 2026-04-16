@@ -35,6 +35,9 @@ from app.utils.sponsor import check_is_second_status_higher
 from app.utils.texts import get_donate_confirm_message
 from app.utils.excel import export_users_to_excel
 from app.utils.texts import get_user_statuses_statistic_message
+from app.utils.texts import get_transaction_message
+from app.models.donate import DonateTransactionType
+
 
 donate_router = Router()
 
@@ -257,7 +260,6 @@ async def confirm_donate(
 ) -> None:
 
     callback_donate_data = "_".join(callback.data.split("_")[1:])
-    await callback.answer(str(callback_donate_data))
     donate_sum = float(callback_donate_data.split("_")[-2])
     bill_type = callback_donate_data.split("_")[-1]
     current_user = await telegram_user_service.get_telegram_user(
@@ -329,7 +331,7 @@ async def donate_handler(
     first_sponsor = await telegram_user_service.get_telegram_user(
         user_id=current_user.sponsor_user_id
     )
-    donations_data = {}
+    donations_data = []
 
     matrix = await donate_service.handle_matrix_activation(
         first_sponsor,
@@ -362,7 +364,6 @@ async def donate_handler(
     transactions_data = await donate_confirm_service.get_donate_transactions_by_donate_id(
         donate_id=donate.id, return_data=True,
     )
-    messages = []
     for transaction in transactions_data:
         sponsor = await telegram_user_service.get_telegram_user(
             id=transaction["sponsor_id"]
@@ -371,18 +372,23 @@ async def donate_handler(
             obj_id=sponsor.id,
             obj_in={"bill_for_withdraw": sponsor.bill_for_withdraw + transaction["quantity"]},
         )
-        messages.append((sponsor.user_id, transaction["quantity"]))
 
     await callback.message.delete()
 
     await callback.message.answer("🎉")
     await callback.message.answer("Уровень успешно активирован ✅")
 
-    for chat_id, quantity in messages:
+    for data in donations_data:
+        message_text = get_transaction_message(
+            quantity=data["quantity"],
+            type_=data["type_"],
+            sender=current_user,
+            status=status
+        )
         try:
             await callback.bot.send_message(
-                text=f"Вам подарок в размере <b>${quantity}</b>\n",
-                chat_id=chat_id,
+                text=message_text,
+                chat_id=data["receiver"].user_id,
             )
         except TelegramAPIError:
             pass
@@ -425,6 +431,7 @@ async def get_transactions_list_to_me(
         donate_confirm_service: DonateConfirmService = Provide[
             Container.donate_confirm_service
         ],
+        donate_service: DonateService = Provide[Container.donate_service],
 ) -> None:
     page_number = int(callback.data.split("_")[-1])
 
@@ -451,18 +458,30 @@ async def get_transactions_list_to_me(
 
     if transactions:
         for transaction in transactions:
-            donate = await donate_confirm_service.get_donate_by_id(
-                donate_id=transaction.donate_id
-            )
-            user = await telegram_user_service.get_telegram_user(
-                id=donate.telegram_user_id
-            )
+            created_at_format = transaction.created_at.strftime("%d.%m.%Y %H:%M")
             message += (
                 f"ID: {transaction.id}\n"
                 f"Сумма: ${transaction.quantity}\n"
-                f"От: @{user.username}\n"
-                f"Дата: {transaction.created_at}\n"
+                f"Дата и время: {created_at_format}\n"
             )
+            if transaction.type_ == DonateTransactionType.SYSTEM:
+                message += "<b>СИСТЕМНЫЙ АККАУНТ.</b>\n\n"
+                continue
+
+            donate = await donate_confirm_service.get_donate_by_id(
+                donate_id=transaction.donate_id
+            )
+            if transaction.type_ == DonateTransactionType.SPONSOR:
+                sponsor = await telegram_user_service.get_telegram_user(
+                    id=donate.telegram_user_id
+                )
+                message += f"<b>От партнера первой линии @{sponsor.username}.</b>\n\n"
+            elif transaction.type_ == DonateTransactionType.MATRIX:
+                status = donate_service.get_donate_status(donate.quantity)
+                message += f"<b>Площадка {status.value}.</b>\n\n"
+
+            else:
+                continue
     else:
         message = "У вас нет транзакций"
 
@@ -500,24 +519,18 @@ async def get_transactions_list_from_me(
     paginator = Paginator(list(donates.items()), page_number=page_number, per_page=3)
     buttons = {}
     sizes = (1, 1)
-    message = "<b><u>Ваши подарки и транзакции</u></b>\n\n"
+    message = "<b><u>Ваши транзакции</u></b>\n\n"
 
     donates = paginator.get_page()
     if donates:
         for donate, transactions in donates:
+            created_at_format = donate.created_at.strftime("%d.%m.%Y %H:%M")
             message += (
                 f"<b><u>Подарок на сумму: "
                 f"${donate.quantity}</u></b>\n"
                 f"ID: {donate.id}\n"
-                f"Дата: {donate.created_at}\n"
+                f"Дата и время: {created_at_format}\n\n"
             )
-
-            if transactions:
-                for transaction in transactions:
-                    sponsor = await telegram_user_service.get_telegram_user(
-                        id=transaction.sponsor_id
-                    )
-                    message += f"Кому: @{sponsor.username}\n\n"
     else:
         message = "У Вас нет подарков"
 
@@ -575,11 +588,13 @@ async def get_all_transactions(
             user = await telegram_user_service.get_telegram_user(
                 id=donate.telegram_user_id
             )
+            created_at_format = donate.created_at.strftime("%d.%m.%Y %H:%M")
+
             message += (
                 f"<b><u>Подарок на сумму: "
                 f"${donate.quantity}</u></b>\n"
                 f"ID: {donate.id}\n"
-                f"Дата: {donate.created_at}\n"
+                f"Дата и время: {created_at_format}\n"
             )
             message += "Транзакции по подарку: \n\n"
             if transactions:
@@ -592,6 +607,7 @@ async def get_all_transactions(
                         f"Сумма: ${transaction.quantity}\n"
                         f"От кого: @{user.username}\n"
                         f"Кому: @{sponsor.username}\n"
+                        f"Тип: <b>{transaction.type_.value.upper()}.</b>\n\n"
                     )
 
     buttons["🔙 Назад"] = f"transactions"

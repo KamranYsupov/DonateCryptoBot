@@ -1,3 +1,4 @@
+import enum
 import uuid
 
 from sqlalchemy import (
@@ -44,6 +45,12 @@ class Donate(UUIDMixin, TimestampedMixin, Base):
     __table_args__ = {"extend_existing": True}
 
 
+class DonateTransactionType(enum.Enum):
+    SYSTEM = "system"
+    SPONSOR = "sponsor"
+    MATRIX = "matrix"
+
+
 class DonateTransaction(UUIDMixin, TimestampedMixin, Base):
     """Модель подтверждения получения доната спонсором"""
 
@@ -65,5 +72,6 @@ class DonateTransaction(UUIDMixin, TimestampedMixin, Base):
         Float,
         default=0,
     )
+    type_ = Column(Enum(DonateTransactionType, name="donate_transaction_enum"))
 
     __table_args__ = {"extend_existing": True}

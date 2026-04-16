@@ -26,7 +26,7 @@ class DonateConfirmService:
     async def create_donate(
         self,
         telegram_user_id: uuid.UUID,
-        donate_data: dict,
+        donate_data: list[dict[str, Any]],
         matrix_id: uuid.UUID,
         quantity: float,
     ):
@@ -43,22 +43,27 @@ class DonateConfirmService:
         )
         return donate_obj
 
-    async def _create_donate_transaction(self, donate_id: uuid.UUID, donate_data: dict):
+    async def _create_donate_transaction(
+            self,
+            donate_id: uuid.UUID,
+            donate_data: list[dict[str, Any]],
+    ):
         """
         Создание конкретной транзакции (часть доната), перечисляемой одному спонсору.
         При создании доната через create_donate - создаются автоматически.
         Всю инфу берет из donate_data.
         """
-        for sponsor, quantity in donate_data.items():
+        for transaction_data in donate_data:
+            sponsor = transaction_data["receiver"]
+
             if sponsor.is_banned:
                 sponsor = self._repository_telegram_user.get(is_admin=True)
-            donate_transaction_dict = {
-                "sponsor_id": sponsor.id,
-                "donate_id": donate_id,
-                "quantity": quantity,
-            }
+
             donate_transaction_dict_obj = DonateTransactionEntity(
-                **donate_transaction_dict
+                sponsor_id=sponsor.id,
+                donate_id=donate_id,
+                quantity=transaction_data["quantity"],
+                type_=transaction_data["type_"],
             )
             self._repository_donate_transaction.create(
                 obj_in=donate_transaction_dict_obj.model_dump()
@@ -122,6 +127,7 @@ class DonateConfirmService:
                 "sponsor_id": transaction.sponsor_id,
                 "donate_id": transaction.donate_id,
                 "quantity": transaction.quantity,
+                "type_": transaction.type_,
                 "created_at": transaction.created_at,
                 "updated_at": transaction.updated_at,
             }

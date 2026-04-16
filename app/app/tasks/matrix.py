@@ -23,6 +23,7 @@ from app.services.matrix_service import AddBotToMatrixTaskModelService
 from app.db.commit_decorator import commit_and_close_session
 from app.core.container import Container
 from app.models.matrix import AddBotToMatrixTaskModel
+from app.utils.texts import get_transaction_message
 
 
 @inject
@@ -42,15 +43,22 @@ async def add_bot_to_matrix(
 
     current_user = await telegram_user_service.get_telegram_user(id=matrix.owner_id)
 
-    bot_user_schema = generate_random_user()
-    bot_user_schema.sponsor_user_id = current_user.user_id
-    bot_user_schema.depth_level = current_user.depth_level + 1
-    bot_user_schema.is_bot = True
 
-    bot_user = await telegram_user_service.create_telegram_user(
-        user=bot_user_schema,
-    )
-    donations_data = {}
+    bot_user = None
+    while not bot_user:
+        bot_user_schema = generate_random_user()
+        bot_user_schema.sponsor_user_id = current_user.user_id
+        bot_user_schema.depth_level = current_user.depth_level + 1
+        bot_user_schema.is_bot = True
+
+        try:
+            bot_user = await telegram_user_service.create_telegram_user(
+                user=bot_user_schema,
+            )
+        except Exception:
+            continue
+
+    donations_data = []
 
     await donate_service.handle_matrix_activation(
         current_user,
@@ -62,7 +70,7 @@ async def add_bot_to_matrix(
     )
 
     donate = await donate_confirm_service.create_donate(
-        telegram_user_id=current_user.id,
+        telegram_user_id=bot_user.id,
         donate_data=donations_data,
         matrix_id=matrix.id,
         quantity=donate_sum,
@@ -73,7 +81,6 @@ async def add_bot_to_matrix(
         donate_id=donate.id, return_data=True,
     )
 
-    messages = []
     for transaction in transactions_data:
         sponsor = await telegram_user_service.get_telegram_user(
             id=transaction["sponsor_id"]
@@ -82,13 +89,18 @@ async def add_bot_to_matrix(
             obj_id=sponsor.id,
             obj_in={"bill_for_withdraw": sponsor.bill_for_withdraw + transaction["quantity"]},
         )
-        messages.append((sponsor.user_id, transaction["quantity"]))
 
-    for chat_id, quantity in messages:
+    for data in donations_data:
+        message_text = get_transaction_message(
+            quantity=data["quantity"],
+            type_=data["type_"],
+            sender=bot_user,
+            status=matrix.status
+        )
         try:
             await bot.send_message(
-                text=f"Вам подарок в размере <b>${quantity}</b>\n",
-                chat_id=chat_id,
+                text=message_text,
+                chat_id=data["receiver"].user_id,
             )
         except TelegramAPIError:
             pass

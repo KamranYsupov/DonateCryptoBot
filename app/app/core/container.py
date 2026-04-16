@@ -46,6 +46,7 @@ class Container(containers.DeclarativeContainer):
             "app.tasks.donate",
             "app.tasks.matrix",
             "app.utils.excel",
+            "app.utils.texts",
         ]
     )
 
