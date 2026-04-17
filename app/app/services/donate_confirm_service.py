@@ -9,6 +9,7 @@ from app.models.telegram_user import TelegramUser
 from app.schemas.donate import DonateEntity, DonateTransactionEntity
 from app.schemas.telegram_user import TelegramUserEntity
 from app.models.telegram_user import MatrixBuildType
+from app.models.donate import DonateTransactionType
 
 
 class DonateConfirmService:
@@ -162,3 +163,17 @@ class DonateConfirmService:
 
     async def get_donates_by_matrices_ids(self, matrices_ids: List[uuid.UUID | str]):
         return self._repository_donate.get_donates_by_matrices_ids(matrices_ids)
+
+    async def get_system_bill(self) -> int:
+        transactions_quantities = (
+            self._repository_donate_transaction.get_transactions_quantities(
+                type_=DonateTransactionType.SYSTEM
+            )
+        )
+        bots_transactions_quantities = \
+            self._repository_donate_transaction.get_bots_transactions_quantities()
+
+        return sum(transactions_quantities) - sum(bots_transactions_quantities)
+
+    async def get_donates_sum(self) -> int:
+        return sum(self._repository_donate.get_donates_quantities())

@@ -103,17 +103,5 @@ class TelegramUserService:
     async def get_count(self, *args, **kwargs) -> int:
         return self._repository_telegram_user.get_count(*args, **kwargs)
 
-    async def get_bills_sum(
-            self,
-            *args,
-            **kwargs
-    ) -> int:
-        return sum(
-            self._repository_telegram_user.get_bills(
-                *args,
-                **kwargs,
-            )
-        )
-
     async def update(self, obj_id: uuid.UUID, obj_in):
         return self._repository_telegram_user.update(obj_id=obj_id, obj_in=obj_in)

@@ -42,6 +42,11 @@ class Donate(UUIDMixin, TimestampedMixin, Base):
         index=True,
     )
 
+    telegram_user = relationship(
+        "TelegramUser",
+        backref="donates",
+    )
+
     __table_args__ = {"extend_existing": True}
 
 
@@ -73,5 +78,10 @@ class DonateTransaction(UUIDMixin, TimestampedMixin, Base):
         default=0,
     )
     type_ = Column(Enum(DonateTransactionType, name="donate_transaction_enum"))
+
+    donate = relationship(
+        "Donate",
+        backref="transactions"
+    )
 
     __table_args__ = {"extend_existing": True}

@@ -107,10 +107,6 @@ class TelegramUser(UUIDMixin, TimestampedMixin, AbstractTelegramUser, Base):
         remote_side="TelegramUser.user_id",
         backref="invited_users"
     )
-    transactions = relationship(
-        "Transaction",
-        back_populates="telegram_user"
-    )
 
     __table_args__ = (
         UniqueConstraint("user_id", name="unique_user_id"),

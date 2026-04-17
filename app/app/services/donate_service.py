@@ -122,16 +122,14 @@ class DonateService:
                 "type_": DonateTransactionType.MATRIX,
             })
 
-
         if is_bot:
             return donations_data
 
-        donate_reminder = (
-                donate_sum - (
-                len(donate_receivers) * matrix_donate_sum
-                + donate_sum * settings.sponsor_donate_percent / 100
-            )
+        donate_reminder = donate_sum - (
+            (len(donate_receivers) * matrix_donate_sum) +
+            (donate_sum * settings.sponsor_donate_percent / 100)
         )
+
         if donate_reminder:
             admin_user = self._repository_telegram_user.get(is_admin=True)
             donations_data.append({
@@ -238,7 +236,10 @@ class DonateService:
             )
             return found_matrix
 
-        if first_sponsor.status != DonateStatus.NOT_ACTIVE:
+        if first_sponsor.status != DonateStatus.NOT_ACTIVE or (
+                int(status.get_status_donate_value())
+                <= int(first_sponsor.status.get_status_donate_value())
+            ):
             donations_data.append({
                 "receiver": first_sponsor,
                 "quantity": donate_sum * settings.sponsor_donate_percent / 100,

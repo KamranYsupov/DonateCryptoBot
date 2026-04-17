@@ -24,6 +24,7 @@ from app.db.commit_decorator import commit_and_close_session
 from app.core.container import Container
 from app.models.matrix import AddBotToMatrixTaskModel
 from app.utils.texts import get_transaction_message
+from app.models.donate import DonateTransactionType
 
 
 @inject
@@ -45,8 +46,9 @@ async def add_bot_to_matrix(
 
 
     bot_user = None
+    bot_user_schema = generate_random_user()
+
     while not bot_user:
-        bot_user_schema = generate_random_user()
         bot_user_schema.sponsor_user_id = current_user.user_id
         bot_user_schema.depth_level = current_user.depth_level + 1
         bot_user_schema.is_bot = True
@@ -56,6 +58,7 @@ async def add_bot_to_matrix(
                 user=bot_user_schema,
             )
         except Exception:
+            bot_user_schema = generate_random_user()
             continue
 
     donations_data = []
@@ -82,6 +85,9 @@ async def add_bot_to_matrix(
     )
 
     for transaction in transactions_data:
+        if transaction["type_"] == DonateTransactionType.SYSTEM:
+            continue
+
         sponsor = await telegram_user_service.get_telegram_user(
             id=transaction["sponsor_id"]
         )
@@ -90,17 +96,30 @@ async def add_bot_to_matrix(
             obj_in={"bill_for_withdraw": sponsor.bill_for_withdraw + transaction["quantity"]},
         )
 
+    admin_user = await telegram_user_service.get_telegram_user(is_admin=True)
+    admin_telegram_id = admin_user.user_id
+
     for data in donations_data:
+        quantity = data["quantity"]
         message_text = get_transaction_message(
-            quantity=data["quantity"],
+            quantity=quantity,
             type_=data["type_"],
-            sender=bot_user,
+            sender_username=bot_user_schema.username,
             status=matrix.status
         )
         try:
             await bot.send_message(
                 text=message_text,
                 chat_id=data["receiver"].user_id,
+            )
+        except TelegramAPIError:
+            pass
+        try:
+            await bot.send_message(
+                text=(
+                    f"<b><em>-{quantity} от системного баланса.</em></b>\n"
+                ),
+                chat_id=admin_telegram_id,
             )
         except TelegramAPIError:
             pass

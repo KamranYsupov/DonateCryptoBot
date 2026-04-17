@@ -57,18 +57,6 @@ class RepositoryTelegramUser(RepositoryBase[TelegramUser]):
         )
         return self._session.execute(statement).scalar()
 
-    def get_bills(
-            self,
-            *args,
-            **kwargs
-    ) -> list[int]:
-        statement = (
-            select(TelegramUser.bill_for_activation)
-            .filter(*args)
-            .filter_by(**kwargs)
-        )
-        return self._session.execute(statement).scalars().all()
-
     def get_invited_users(
             self,
             sponsor_user_id: int

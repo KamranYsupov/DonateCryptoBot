@@ -37,7 +37,7 @@ from app.utils.excel import export_users_to_excel
 from app.utils.texts import get_user_statuses_statistic_message
 from app.utils.texts import get_transaction_message
 from app.models.donate import DonateTransactionType
-
+from app.models.donate import DonateTransactionType
 
 donate_router = Router()
 
@@ -168,14 +168,20 @@ async def donations_menu_handler(
         statuses_statistic_message = get_user_statuses_statistic_message(
             users,
         )
+        donates_sum = await donate_confirm_service.get_donates_sum()
+        system_bill = await donate_confirm_service.get_system_bill()
         message_text = (
             f"Партнеров в «НА СВЯЗИ»: <b>{len(users)}</b>\n"
             f"\n{statuses_statistic_message}\n"
             f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
+            "Всего подарили: "
+            f"<b>${donates_sum}</b>\n"
             f"Баланс для активации: "
             f"<b>{current_user.bill_for_activation}</b>\n"
             "Баланс для вывода: "
             f"<b>{current_user.bill_for_withdraw}</b>\n"
+            "Системный баланс: "
+            f"<b>{system_bill}</b>\n"
         )
         buttons = default_buttons
         admin_buttons = {
@@ -365,6 +371,9 @@ async def donate_handler(
         donate_id=donate.id, return_data=True,
     )
     for transaction in transactions_data:
+        if transaction["type_"] == DonateTransactionType.SYSTEM:
+            continue
+
         sponsor = await telegram_user_service.get_telegram_user(
             id=transaction["sponsor_id"]
         )
@@ -382,7 +391,7 @@ async def donate_handler(
         message_text = get_transaction_message(
             quantity=data["quantity"],
             type_=data["type_"],
-            sender=current_user,
+            sender_username=callback.from_user.username,
             status=status
         )
         try:
@@ -607,8 +616,13 @@ async def get_all_transactions(
                         f"Сумма: ${transaction.quantity}\n"
                         f"От кого: @{user.username}\n"
                         f"Кому: @{sponsor.username}\n"
-                        f"Тип: <b>{transaction.type_.value.upper()}.</b>\n\n"
+                        f"Тип: <b>{transaction.type_.value.upper()}.</b>\n"
                     )
+                    if user.is_bot:
+                        message += \
+                            f"<b><em>-{transaction.quantity} от системного баланса.</em></b>\n"
+
+                    message += "\n"
 
     buttons["🔙 Назад"] = f"transactions"
     await callback.message.edit_text(

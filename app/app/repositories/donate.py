@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.telegram_user import TelegramUser, DonateStatus,  MatrixBuildType
 from .base import RepositoryBase
-from app.models.donate import Donate, DonateTransaction
+from app.models.donate import Donate, DonateTransaction, DonateTransactionType
 
 
 class RepositoryDonate(RepositoryBase[Donate]):
@@ -71,6 +71,13 @@ class RepositoryDonate(RepositoryBase[Donate]):
 
         return self._session.execute(statement).scalars().all()
 
+    def get_donates_quantities(self, *args, **kwargs):
+        statement = select(
+            Donate.quantity
+        ).filter(*args).filter_by(**kwargs)
+
+        return self._session.execute(statement).scalars().all()
+
 
 class RepositoryDonateTransaction(RepositoryBase[DonateTransaction]):
     """Репозиторий доната"""
@@ -78,6 +85,26 @@ class RepositoryDonateTransaction(RepositoryBase[DonateTransaction]):
     def get_transactions_list(self):
         statement = select(DonateTransaction).order_by(
             DonateTransaction.created_at.desc()
+        )
+
+        return self._session.execute(statement).scalars().all()
+
+    def get_transactions_quantities(self, *args, **kwargs):
+        statement = select(
+            DonateTransaction.quantity
+        ).filter(*args).filter_by(**kwargs)
+
+        return self._session.execute(statement).scalars().all()
+
+    def get_bots_transactions_quantities(self):
+        statement = (
+            select(DonateTransaction.quantity)
+            .join(DonateTransaction.donate)
+            .join(Donate.telegram_user)
+            .where(
+                DonateTransaction.type_ == DonateTransactionType.MATRIX,
+                TelegramUser.is_bot == True
+            )
         )
 
         return self._session.execute(statement).scalars().all()
