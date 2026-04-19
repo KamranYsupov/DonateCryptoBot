@@ -7,6 +7,8 @@ from app.keyboards.donate import get_donate_keyboard
 from app.schemas.telegram_user import BillType
 from app.core.container import Container
 from app.services.telegram_user_service import TelegramUserService
+from app.models.telegram_user import status_list
+from app.services.donate_service import DonateService
 
 bill_type_router = Router()
 
@@ -19,6 +21,7 @@ async def bill_type_handler(
         telegram_user_service: TelegramUserService = Provide[
             Container.telegram_user_service
         ],
+        donate_service: DonateService = Provide[Container.donate_service],
 ) -> None:
     async def send_bill_type_choice(add_back_button: bool = True):
         current_user = await telegram_user_service.get_telegram_user(
@@ -50,6 +53,18 @@ async def bill_type_handler(
     callback = aiogram_type
     callback_data = callback.data.split("_")
     if "🔴" in callback_data:
+        return
+
+    donate_sum = float(callback_data[-1])
+    status = donate_service.get_donate_status(donate_sum)
+
+    if status in status_list[-2:]:
+        await callback.message.edit_text(
+            "Эта площадка пока не доступна.",
+            reply_markup=get_donate_keyboard(
+                buttons={"🔙 Назад": "donations"}
+            )
+        )
         return
 
     callback_data = "send_" + "_".join(callback_data[1:])
