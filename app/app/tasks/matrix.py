@@ -134,7 +134,7 @@ async def execute_tasks(
 ):
     now = datetime.datetime.now()
     tasks = await add_bot_to_matrix_task_service.get_list(
-        AddBotToMatrixTaskModel.execute_at <= now, #+ datetime.timedelta(minutes=1),
+        AddBotToMatrixTaskModel.execute_at <= now + datetime.timedelta(minutes=1),
         is_executed=False,
     )
     tasks_data = [

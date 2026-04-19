@@ -30,7 +30,7 @@ class DonateStatus(enum.Enum):
     SILVER = "Серебро"
     GOLD = "Золото"
     PLATINUM = "Платина"
-    BRILLIANT = "Бриллиант"
+    BRILLIANT = "Триумф"
 
     @classmethod
     def get_donations_data(cls):
@@ -77,7 +77,7 @@ statuses_colors_data = {
     DonateStatus.SILVER: "⚪",
     DonateStatus.GOLD: "🟡",
     DonateStatus.PLATINUM: "⚫",
-    DonateStatus.BRILLIANT: "🟣",
+    DonateStatus.BRILLIANT: "🏆",
 }
 
 class TelegramUser(UUIDMixin, TimestampedMixin, AbstractTelegramUser, Base):

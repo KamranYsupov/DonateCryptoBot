@@ -169,7 +169,7 @@ async def donations_menu_handler(
     if current_user.status != DonateStatus.NOT_ACTIVE:
         default_buttons.update({
             "Транзакции 💳": f"transactions",
-            "АКТИВНЫЕ УРОВНИ": f"team_1"
+            "АКТИВНЫЕ ПЛОЩАДКИ": f"team_1"
         })
 
     if current_user.is_admin:
@@ -299,8 +299,8 @@ async def confirm_donate(
 
 
     await callback.message.edit_text(
-        text=f"Для активации уровня с вашего баланса спишется <b>{donate_sum}</b> токенов.\n\n"
-             "<b>Вы согласны продолжить?</b>",
+        text=f"Для активации площадки с вашего баланса будет списано ${donate_sum}\n\n"
+        "Продолжить?",
         parse_mode="HTML",
         reply_markup=get_donate_keyboard(
             buttons={
@@ -392,7 +392,9 @@ async def donate_handler(
     await callback.message.delete()
 
     await callback.message.answer("🎉")
-    await callback.message.answer("Уровень успешно активирован ✅")
+    await callback.message.answer(
+        "<b>Площадка успешно активирована, бот начал свою работу ✅</b>"
+    )
 
     for data in donations_data:
         message_text = get_transaction_message(

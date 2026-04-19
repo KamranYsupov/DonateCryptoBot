@@ -150,9 +150,10 @@ def get_matrix_info_message(
     """
     Выводит бинарное дерево матрицы.
     """
-    lines = [f"<b>Уровень {matrix.id.hex[0:5]}: {matrix.status.value}</b>"]
+    color = statuses_colors_data.get(matrix.status)
+    lines = [f"<b>{color} {matrix.status.value}: {matrix.id.hex[0:5]}</b>"]
     if not matrix.matrices:
-        lines.append("\nВсе места свободны\n")
+        lines.append(f"\nМест занято: <b>{len(matrix.telegram_users)} из {settings.matrix_max_length}\n</b>")
 
         return "\n".join(lines)
     counter = 1
@@ -178,14 +179,13 @@ def get_matrix_info_message(
             break
         level = levels_data[level_number]
 
-        lines.append(f"\n<b>{level_number} Уровень:</b>")
+        lines.append(f"\n<b>{level_number}️⃣ Уровень:</b>")
         for obj in level:
             value = "Свободно" if obj is None else "Занято"
             lines.append(f"{counter}) {value}")
             counter += 1
 
-
-    lines.append(f"\nВсего участников: <b>{len(matrix.telegram_users)}</b>\n")
+    lines.append(f"\nМест занято: <b>{len(matrix.telegram_users)} из {settings.matrix_max_length}\n</b>")
 
     return "\n".join(lines)
 
@@ -197,8 +197,7 @@ def get_transaction_message(
 ) -> str:
     if type_ == DonateTransactionType.SYSTEM:
         return f"Системный аккаунт <b>${quantity}</b>"
-
-    template = "Вам подарок <b>${0}</b> {1}площадка {2}."
+    template = "Вам подарок <b>${0}</b> {1}занято место площадка {2}."
 
     sponsor_text = (
         f"от реферального партнера @{sender_username} "

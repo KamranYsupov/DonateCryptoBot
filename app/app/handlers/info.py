@@ -88,7 +88,7 @@ async def team_inline_handler(
         back_button_data = f"team_{previous_page_number}"
     else:
         matrices = get_active_matrices(matrices)
-        title_text = "АКТИВНЫЕ УРОВНИ:"
+        title_text = "АКТИВНЫЕ ПЛОЩАДКИ:"
         page_number = int(callback.data.split("_")[-1])
         previous_page_number = None
         callback_data_prefix = f"team"
