@@ -189,7 +189,7 @@ async def admin(
 #         user=user,
 #         sponsor=current_user
 #     )
-#     donations_data = {current_user: donate_sum * settings.sponsor_donate_percent / 100}
+#     donations_data = {current_user: donate_sum * settings.first_sponsor_donate_percent / 100}
 #
 #     matrix = await donate_service.handle_matrix_activation(
 #         current_user,

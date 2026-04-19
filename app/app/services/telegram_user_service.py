@@ -50,11 +50,11 @@ class TelegramUserService:
             sponsor.invites_count += 1
         return self._repository_telegram_user.create(obj_in=user.model_dump())
 
-    async def get_telegram_user_sponsors(
+    async def get_telegram_user_with_sponsors(
         self, user_id: int
     ) -> tuple[TelegramUser, TelegramUser, TelegramUser]:
 
-        return self._repository_telegram_user.get_telegram_user_sponsors(
+        return self._repository_telegram_user.get_telegram_user_with_sponsors(
             user_id=user_id
         )
 

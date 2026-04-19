@@ -8,6 +8,8 @@ from app.models.telegram_user import TelegramUser, DonateStatus,  MatrixBuildTyp
 from .base import RepositoryBase
 from app.models.donate import Donate, DonateTransaction, DonateTransactionType
 
+from ..models.telegram_user import TelegramUser
+
 
 class RepositoryDonate(RepositoryBase[Donate]):
     """Репозиторий доната"""
@@ -72,9 +74,10 @@ class RepositoryDonate(RepositoryBase[Donate]):
         return self._session.execute(statement).scalars().all()
 
     def get_donates_quantities(self, *args, **kwargs):
-        statement = select(
-            Donate.quantity
-        ).filter(*args).filter_by(**kwargs)
+        statement = (
+            select(Donate.quantity)
+            .join(Donate.telegram_user)
+            .filter(TelegramUser.is_bot == False, *args).filter_by(**kwargs))
 
         return self._session.execute(statement).scalars().all()
 

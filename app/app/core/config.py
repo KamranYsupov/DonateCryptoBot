@@ -75,7 +75,10 @@ class Settings(BaseSettings):
     add_bot_to_matrix_1_countdown_minutes: int = 5
     add_bot_to_matrix_2_countdown_minutes: int = 15
 
-    sponsor_donate_percent: int = 20
+    first_sponsor_donate_percent: int = 20
+    second_sponsor_donate_percent: int = 10
+    third_sponsor_donate_percent: int = 5
+
     matrix_donate_percent: int = 10
 
     withdrawal_min_tokens_count: int = 10

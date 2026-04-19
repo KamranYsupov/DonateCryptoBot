@@ -45,58 +45,11 @@ donate_router = Router()
 @inject
 async def subscribe_handler(
         callback: CallbackQuery,
-) -> None:
-    sponsor_user_id = get_callback_value(callback.data)
-
-    buttons = [
-        InlineKeyboardButton(
-            text="📌 КАНАЛ 📌",
-            url=settings.channel_link),
-        InlineKeyboardButton(
-            text="💬 ЧАТ 💬",
-            url=settings.chat_link),
-        InlineKeyboardButton(
-            text="Проверить подписку ✅",
-            callback_data=f"menu_{sponsor_user_id}",
-        )
-    ]
-    keyboard = InlineKeyboardBuilder()
-    keyboard.add(*buttons)
-
-    await callback.message.delete()
-    await callback.message.answer(
-        f"🔑 Для доступа к основным функциям бота, подпишитесь на чат и канал сообщества ⤵️",
-        reply_markup=keyboard.adjust(1, 1).as_markup()
-    )
-
-
-@donate_router.callback_query(F.data.startswith("menu_"))
-@inject
-@commit_and_close_session
-async def subscription_checker(
-        callback: CallbackQuery,
         telegram_user_service: TelegramUserService = Provide[
             Container.telegram_user_service
         ],
-):
-    sponsor_user_id = get_callback_value(callback.data)
-    sponsor = await telegram_user_service.get_telegram_user(user_id=sponsor_user_id)
-
-    chat_result = await callback.bot.get_chat_member(
-        chat_id=settings.chat_id, user_id=callback.from_user.id
-    )
-    channel_result = await callback.bot.get_chat_member(
-        chat_id=settings.channel_id, user_id=callback.from_user.id
-    )
-
-    not_subscribed_statuses = (ChatMemberStatus.LEFT, ChatMemberStatus.KICKED)
-    if channel_result.status in not_subscribed_statuses or chat_result.status in not_subscribed_statuses:
-        await callback.answer("Ты не подписался ❌", show_alert=True)
-        return
-
+) -> None:
     await callback.message.delete()
-
-
     if not callback.from_user.username:
         await callback.message.answer(
             "Для регистрации добавьте пожалуйста <em>username</em> в свой telegram аккаунт",
@@ -106,11 +59,11 @@ async def subscription_checker(
         )
         return
 
-
+    sponsor_user_id = get_callback_value(callback.data)
+    sponsor = await telegram_user_service.get_telegram_user(user_id=sponsor_user_id)
     current_user = await telegram_user_service.get_telegram_user(
         user_id=callback.from_user.id
     )
-
     if not current_user:
         user_dict = callback.from_user.model_dump()
         user_id = user_dict.pop("id")
@@ -133,6 +86,62 @@ async def subscription_checker(
         except TelegramAPIError:
             pass
 
+    buttons = [
+        InlineKeyboardButton(
+            text="📌 КАНАЛ 📌",
+            url=settings.channel_link),
+        InlineKeyboardButton(
+            text="💬 ЧАТ 💬",
+            url=settings.chat_link),
+        InlineKeyboardButton(
+            text="Проверить подписку ✅",
+            callback_data=f"menu_{sponsor_user_id}",
+        )
+    ]
+    keyboard = InlineKeyboardBuilder()
+    keyboard.add(*buttons)
+
+    await callback.message.answer(
+        f"🔑 Для доступа к основным функциям бота, подпишитесь на чат и канал сообщества ⤵️",
+        reply_markup=keyboard.adjust(1, 1).as_markup()
+    )
+
+
+@donate_router.callback_query(F.data.startswith("menu_"))
+@inject
+@commit_and_close_session
+async def subscription_checker(
+        callback: CallbackQuery,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
+):
+    chat_result = await callback.bot.get_chat_member(
+        chat_id=settings.chat_id, user_id=callback.from_user.id
+    )
+    channel_result = await callback.bot.get_chat_member(
+        chat_id=settings.channel_id, user_id=callback.from_user.id
+    )
+
+    not_subscribed_statuses = (ChatMemberStatus.LEFT, ChatMemberStatus.KICKED)
+    if channel_result.status in not_subscribed_statuses or chat_result.status in not_subscribed_statuses:
+        await callback.answer("Ты не подписался ❌", show_alert=True)
+        return
+
+    if not callback.from_user.username:
+        await callback.message.answer(
+            "Для регистрации добавьте пожалуйста <em>username</em> в свой telegram аккаунт",
+            reply_markup=get_donate_keyboard(
+                buttons={"Попробовать ещё раз": callback.data}
+            )
+        )
+        return
+
+
+    current_user = await telegram_user_service.get_telegram_user(
+        user_id=callback.from_user.id
+    )
+    await callback.message.delete()
     await callback.message.answer(
         "✅ Готово! Выбери сервис", reply_markup=get_reply_keyboard(current_user)
     )
@@ -164,7 +173,7 @@ async def donations_menu_handler(
         })
 
     if current_user.is_admin:
-        users = await telegram_user_service.get_list()
+        users = await telegram_user_service.get_list(is_bot=False)
         statuses_statistic_message = get_user_statuses_statistic_message(
             users,
         )
@@ -224,9 +233,9 @@ async def donations_menu_handler(
 
     buttons.update(default_buttons)
     buttons.update({"Пополнить баланс": "start_buy_tokens_state"})
-    #
-    # if current_user.bill > 0:
-    #     buttons.update({"Вывод средств": "withdrawal_request"})
+
+    if current_user.bill_for_withdraw > 0:
+        buttons.update({"Вывод средств": "withdrawal_request"})
 
     await telegram_method(
         text=message_text,
@@ -320,9 +329,10 @@ async def donate_handler(
     donate_sum = int(callback.data.split("_")[-2])
 
     status = donate_service.get_donate_status(donate_sum)
-    current_user = await telegram_user_service.get_telegram_user(
+    current_user_with_sponsors = await telegram_user_service.get_telegram_user_with_sponsors(
         user_id=callback.from_user.id
     )
+    current_user, first_sponsor, second_sponsor, third_sponsor = current_user_with_sponsors
 
     if not callback.from_user.username:
         await callback.message.edit_text(
@@ -334,13 +344,10 @@ async def donate_handler(
     if callback.from_user.username and current_user.username is None:
         current_user.username = callback.from_user.username
 
-    first_sponsor = await telegram_user_service.get_telegram_user(
-        user_id=current_user.sponsor_user_id
-    )
     donations_data = []
 
     matrix = await donate_service.handle_matrix_activation(
-        first_sponsor,
+        (first_sponsor, second_sponsor, third_sponsor),
         current_user,
         donate_sum,
         donations_data,
@@ -397,7 +404,7 @@ async def donate_handler(
         try:
             await callback.bot.send_message(
                 text=message_text,
-                chat_id=data["receiver"].user_id,
+                chat_id=data["receiver_chat_id"],
             )
         except TelegramAPIError:
             pass

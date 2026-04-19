@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import select, text, func
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, aliased
 
 from .base import RepositoryBase
 from app.models.telegram_user import TelegramUser, MatrixBuildType, DonateStatus
@@ -70,26 +70,21 @@ class RepositoryTelegramUser(RepositoryBase[TelegramUser]):
 
         return self._session.execute(statement).scalars().all()
 
-    def get_telegram_user_sponsors(
+    def get_telegram_user_with_sponsors(
         self, user_id: int
     ) -> tuple[TelegramUser, TelegramUser, TelegramUser]:
-        current_user = (
-            self._session.query(TelegramUser).filter_by(user_id=user_id).first()
+        t1, t2, t3, t4 = [aliased(TelegramUser) for _ in range(4)]
+        sponsors = (
+            self._session.query(t1, t2, t3, t4)
+            .outerjoin(t2, t2.user_id == t1.sponsor_user_id)
+            .outerjoin(t3, t3.user_id == t2.sponsor_user_id)
+            .outerjoin(t4, t4.user_id == t3.sponsor_user_id)
+            .filter(t1.user_id == user_id)
+            .limit(1)
+            .one_or_none()
         )
 
-        first_sponsor = (
-            self._session.query(TelegramUser)
-            .join(TelegramUser, TelegramUser.user_id == current_user.sponsor_user_id)
-            .first()
-        )
-
-        second_sponsor = (
-            self._session.query(TelegramUser)
-            .join(TelegramUser, TelegramUser.user_id == first_sponsor.sponsor_user_id)
-            .first()
-        )
-
-        return current_user, first_sponsor, second_sponsor
+        return sponsors
 
     def get_sponsors_for_separating_donate(self, user_id: int):
         sponsors = []

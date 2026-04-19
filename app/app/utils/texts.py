@@ -201,7 +201,7 @@ def get_transaction_message(
     template = "Вам подарок <b>${0}</b> {1}площадка {2}."
 
     sponsor_text = (
-        f"от партнера первой линии @{sender_username} "
+        f"от реферального партнера @{sender_username} "
         if type_ == DonateTransactionType.SPONSOR else ""
     )
 

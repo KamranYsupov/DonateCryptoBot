@@ -7,6 +7,7 @@ from app.models.matrix import Matrix
 from app.models.telegram_user import TelegramUser
 from app.models.telegram_user import MatrixBuildType
 from app.core.config import settings
+from app.models.matrix import Matrix
 
 
 def get_sorted_matrices(matrices, status_list):
@@ -57,7 +58,7 @@ def get_archived_matrices(
 
     archived_matrices = [
         matrix for matrix in matrices
-        if get_matrices_length(matrix.matrices) == settings.matrix_max_length
+        if len(matrix.telegram_users) == settings.matrix_max_length
     ]
 
     return archived_matrices
@@ -69,7 +70,7 @@ def get_active_matrices(
 
     archived_matrices = [
         matrix for matrix in matrices
-        if get_matrices_length(matrix.matrices) < settings.matrix_max_length
+        if len(matrix.telegram_users) < settings.matrix_max_length
     ]
 
     return archived_matrices

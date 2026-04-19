@@ -39,7 +39,7 @@ async def add_bot_to_matrix(
 ) -> None:
 
     matrix = await matrix_service.get_matrix(id=matrix_id)
-    if len(matrix.telegram_users) >= 2:
+    if len(matrix.matrices) >= 2:
         return
 
     current_user = await telegram_user_service.get_telegram_user(id=matrix.owner_id)
@@ -98,6 +98,7 @@ async def add_bot_to_matrix(
 
     admin_user = await telegram_user_service.get_telegram_user(is_admin=True)
     admin_telegram_id = admin_user.user_id
+    status = matrix.status
 
     for data in donations_data:
         quantity = data["quantity"]
@@ -105,12 +106,12 @@ async def add_bot_to_matrix(
             quantity=quantity,
             type_=data["type_"],
             sender_username=bot_user_schema.username,
-            status=matrix.status
+            status=status
         )
         try:
             await bot.send_message(
                 text=message_text,
-                chat_id=data["receiver"].user_id,
+                chat_id=data["receiver_chat_id"],
             )
         except TelegramAPIError:
             pass

@@ -1,7 +1,7 @@
 import uuid
 from copy import copy
 from datetime import datetime, timedelta
-from typing import Tuple, Any, Sequence
+from typing import Tuple, Any, Sequence, Optional
 
 import loguru
 from dependency_injector.wiring import inject
@@ -85,6 +85,35 @@ class DonateService:
 
         return parents
 
+    async def _update_donate_data_with_sponsors(
+            self,
+            first_sponsor: Optional[TelegramUser],
+            second_sponsor: Optional[TelegramUser],
+            third_sponsor: Optional[TelegramUser],
+            status: DonateStatus,
+            donate_sum: int | float,
+            donations_data: list,
+    ) -> list[dict[str, Any]]:
+        sponsor_donate_percents = (
+            (first_sponsor, settings.first_sponsor_donate_percent,),
+            (second_sponsor, settings.second_sponsor_donate_percent,),
+            (third_sponsor, settings.third_sponsor_donate_percent,)
+        )
+
+        for sponsor, percent in sponsor_donate_percents:
+            if not sponsor:
+                continue
+
+            if sponsor.status != DonateStatus.NOT_ACTIVE:
+                donations_data.append({
+                    "receiver": sponsor,
+                    "receiver_chat_id": sponsor.user_id,
+                    "quantity": donate_sum * percent / 100,
+                    "type_": DonateTransactionType.SPONSOR,
+                 })
+
+        return donations_data
+
     async def _update_donate_data_with_matrix_receivers(
             self,
             matrix: Matrix,
@@ -111,6 +140,9 @@ class DonateService:
             ids=donate_receivers_ids,
             is_bot=False,
         )
+        sponsor_donations_quantities = [
+            transaction["quantity"] for transaction in donations_data
+        ]
 
         for receiver in donate_receivers:
             if receiver.status == DonateStatus.NOT_ACTIVE:
@@ -118,6 +150,7 @@ class DonateService:
 
             donations_data.append({
                 "receiver": receiver,
+                "receiver_chat_id": receiver.user_id,
                 "quantity": matrix_donate_sum,
                 "type_": DonateTransactionType.MATRIX,
             })
@@ -126,14 +159,15 @@ class DonateService:
             return donations_data
 
         donate_reminder = donate_sum - (
-            (len(donate_receivers) * matrix_donate_sum) +
-            (donate_sum * settings.sponsor_donate_percent / 100)
+            (len(donate_receivers) * matrix_donate_sum)
+            + sum(sponsor_donations_quantities)
         )
 
         if donate_reminder:
             admin_user = self._repository_telegram_user.get(is_admin=True)
             donations_data.append({
                 "receiver": admin_user,
+                "receiver_chat_id": admin_user.user_id,
                 "quantity": donate_reminder,
                 "type_": DonateTransactionType.SYSTEM,
             })
@@ -158,15 +192,6 @@ class DonateService:
         created_matrix.created_at = current_time
 
         matrix_owner = self._repository_telegram_user.get(id=matrix_to_add.owner_id)
-        if len(matrix_to_add.telegram_users) == settings.matrix_max_length and matrix_owner.is_admin:
-            matrix_to_add_entity = MatrixEntity(
-                owner_id=matrix_owner.id,
-                status=matrix_to_add.status,
-            )
-            matrix_to_add = self._repository_matrix.create(obj_in=matrix_to_add_entity)
-            (matrix_to_add.matrices,
-             matrix_to_add.matrix_telegram_usernames,
-             matrix_to_add.telegram_users) = {}, {}, []
 
 
         matrix_to_add_path_matrices = self._repository_matrix.get_matrices_by_ids_list(
@@ -217,7 +242,7 @@ class DonateService:
 
     async def handle_matrix_activation(
             self,
-            first_sponsor: TelegramUser,
+            sponsors: Sequence[TelegramUser],
             current_user: TelegramUser,
             donate_sum: int,
             donations_data: list,
@@ -236,15 +261,15 @@ class DonateService:
             )
             return found_matrix
 
-        if first_sponsor.status != DonateStatus.NOT_ACTIVE or (
-                int(status.get_status_donate_value())
-                <= int(first_sponsor.status.get_status_donate_value())
-            ):
-            donations_data.append({
-                "receiver": first_sponsor,
-                "quantity": donate_sum * settings.sponsor_donate_percent / 100,
-                "type_": DonateTransactionType.SPONSOR,
-            })
+        first_sponsor, second_sponsor, third_sponsor = sponsors
+        await self._update_donate_data_with_sponsors(
+            first_sponsor,
+            second_sponsor,
+            third_sponsor,
+            status,
+            donate_sum,
+            donations_data,
+        )
 
         first_sponsor_matrices = self._repository_matrix.get_user_matrices(
             owner_id=first_sponsor.id,
@@ -252,6 +277,7 @@ class DonateService:
         )
 
         for matrix in first_sponsor_matrices:
+
             if len(matrix.telegram_users) < settings.matrix_max_length:
                 await self._handle_insertion_to_free_matrix(
                     matrix,
@@ -262,6 +288,23 @@ class DonateService:
                 )
                 return matrix
         else:
+            if first_sponsor.is_admin:
+                matrix_entity = MatrixEntity(
+                    owner_id=first_sponsor.id,
+                    status=status,
+                )
+                matrix = self._repository_matrix.create(obj_in=matrix_entity)
+                (matrix.matrices,
+                 matrix.matrix_telegram_usernames,
+                 matrix.telegram_users) = {}, {}, []
+                await self._handle_insertion_to_free_matrix(
+                    matrix,
+                    current_user,
+                    donate_sum,
+                    donations_data,
+                    level_length,
+                )
+                return matrix
 
             return await self._find_free_matrix(
                 current_user,
