@@ -185,6 +185,8 @@ async def referral_message_handler(message: Message):
         caption=caption,
         reply_markup=keyboard.as_markup(),
         supports_streaming=True,
+        width=1080,
+        height=1920,
     )
 
     video_file_id = load_file_id()
