@@ -181,7 +181,7 @@ async def donations_menu_handler(
         donates_sum = await donate_confirm_service.get_donates_sum()
         system_bill = await donate_confirm_service.get_system_bill()
         message_text = (
-            f"Партнеров в «НА СВЯЗИ»: <b>{len(users)}</b>\n"
+            f"Регистраций в KOD💵DENEG: <b>{len(users)}</b>\n"
             f"\n{statuses_statistic_message}\n"
             f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
             "Всего подарили: "
