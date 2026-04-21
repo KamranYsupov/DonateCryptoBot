@@ -44,6 +44,10 @@ async def about_handler(
             url="https://t.me/kod_deneg_film/12"
         ),
         InlineKeyboardButton(
+            text="🖥 Презентация",
+            url=settings.presentation_link,
+        ),
+        InlineKeyboardButton(
             text="📌 Канал сообщества",
             url=settings.channel_link
         ),
@@ -137,6 +141,27 @@ async def team_inline_handler(
 
 @info_router.message(F.text == "🚀 Продвижение")
 async def referral_message_handler(message: Message):
+    keyboard = InlineKeyboardBuilder()
+    registration_link = f"{settings.bot_link}?start={message.from_user.id}"
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🔑 Получить доступ",
+            url=registration_link
+        )
+    )
+    await message.answer_photo(
+        photo=FSInputFile("app/media/base_photo.jpg"),
+        caption=(
+            "🎬 «Код Денег» — нейронаучный фильм. Никаких сложных техник. "
+            "Просто берёшь бумагу, пишешь желаемую сумму. И смотришь видео.\n\n"
+            "🧠 Без магии. Без усилий. Твой мозг сам переключается из дефицита в изобилие."
+            " Ты начинаешь замечать деньги там, где раньше видел стены.\n\n"
+            "📎 Всё, что нужно — фильм, инструкция и чат. Внутри бота."
+        ),
+        reply_markup=keyboard.as_markup()
+    )
+
     file_id_path = "app/media/kod_deneg_MP4_file_id.txt"
     def load_file_id() -> str | None:
         if os.path.exists(file_id_path):
@@ -149,22 +174,12 @@ async def referral_message_handler(message: Message):
         with open(file_id_path, "w") as f:
             f.write(file_id)
 
-    keyboard = InlineKeyboardBuilder()
-    registration_link = f"{settings.bot_link}?start={message.from_user.id}"
-
-    keyboard.add(
-        InlineKeyboardButton(
-            text="🔑 Получить доступ",
-            url=registration_link
-        )
-    )
-
     caption = (
         "💰 «Код Денег» — бот автоматически закрывает 2 места под вами и под каждым партнёром.\n"
         "✅ 10% с каждого закрытого места\n"
         "✅ Реферальные бонусы 20% / 10% / 5%\n"
         "✅ Подходит даже тем, у кого нет опыта\n\n"
-        "<a href='https://telegra.ph/KODDENEG-04-20'>📖 Подробная текстовая презентация с примерами расчётов.</a>"
+        f"<a href='{settings.presentation_link}'>📖 Подробная текстовая презентация с примерами расчётов.</a>"
     )
     answer_video_kwargs = dict(
         caption=caption,
