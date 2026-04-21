@@ -90,6 +90,19 @@ class Settings(BaseSettings):
     matrix_max_length: int = 30
     matrix_max_level: int = 4
 
+    telegram_server_host: str = Field(
+        title="Telegram Local Server host",
+        default="telegram-server",
+    )
+    telegram_server_port: int = Field(title="Telegram Local Server port", default=8081)
+    telegram_app_api_id: int = Field(title="Telegram App API ID")
+    telegram_app_api_hash: str = Field(title="Telegram App API Hash")
+
+    @computed_field
+    @property
+    def telegram_server_url(self) -> str:
+        return f"http://{self.telegram_server_host}:{self.telegram_server_port}"
+
     @computed_field
     @property
     def postgres_url(self) -> PostgresDsn:
@@ -127,7 +140,7 @@ class Settings(BaseSettings):
 
 
 class Config:
-        env_file = ".env"
+    env_file = ".env"
 
 
 settings = Settings()

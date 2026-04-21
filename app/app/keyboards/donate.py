@@ -35,6 +35,19 @@ def get_donations_keyboard(
 
         return buttons
 
+    if current_status.value == DonateStatus.GOLD.value:
+        for status in status_list:
+            emoji = "🟢" if status not in DonateStatus.get_status_list()[-2:] \
+                else "🔴"
+
+            donate_sum = status.get_status_donate_value()
+            button_text = \
+                f"{emoji}{status.value} - ${donate_sum}{emoji}"
+            buttons[button_text] = \
+                f"confirm_donate_{emoji}_{donate_sum}"
+
+        return buttons
+
     if current_status.value == DonateStatus.get_status_list()[-1].value:
         for status in status_list:
             donate_sum = status.get_status_donate_value()

@@ -168,8 +168,9 @@ async def donations_menu_handler(
 
     if current_user.status != DonateStatus.NOT_ACTIVE:
         default_buttons.update({
+            "АКТИВНЫЕ ПЛОЩАДКИ": f"team_1",
             "Транзакции 💳": f"transactions",
-            "АКТИВНЫЕ ПЛОЩАДКИ": f"team_1"
+
         })
 
     if current_user.is_admin:
@@ -198,6 +199,7 @@ async def donations_menu_handler(
             "Заявки на вывод 💸": "withdrawal_requests_1",
             "Список забаненных пользователей 📇🅱️": "banned_users_1",
             "Забанить пользователя 🔒": "ban_user",
+            "Внутренний перевод": "start_transfer"
         }
         buttons.update(admin_buttons)
 
@@ -232,10 +234,11 @@ async def donations_menu_handler(
     )
 
     buttons.update(default_buttons)
-    buttons.update({"Пополнить баланс": "start_buy_tokens_state"})
-
-    if current_user.bill_for_withdraw > 0:
-        buttons.update({"Вывод средств": "withdrawal_request"})
+    buttons.update({
+        "Пополнить баланс": "start_buy_tokens_state",
+        "Вывод средств": "withdrawal_request",
+        "Внутренний перевод": "start_transfer"
+    })
 
     await telegram_method(
         text=message_text,
@@ -401,7 +404,8 @@ async def donate_handler(
             quantity=data["quantity"],
             type_=data["type_"],
             sender_username=callback.from_user.username,
-            status=status
+            status=status,
+            sponsor_depth=data.get("sponsor_depth"),
         )
         try:
             await callback.bot.send_message(

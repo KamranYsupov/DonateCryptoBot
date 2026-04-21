@@ -90,7 +90,6 @@ class DonateService:
             first_sponsor: Optional[TelegramUser],
             second_sponsor: Optional[TelegramUser],
             third_sponsor: Optional[TelegramUser],
-            status: DonateStatus,
             donate_sum: int | float,
             donations_data: list,
     ) -> list[dict[str, Any]]:
@@ -100,7 +99,7 @@ class DonateService:
             (third_sponsor, settings.third_sponsor_donate_percent,)
         )
 
-        for sponsor, percent in sponsor_donate_percents:
+        for sponsor_depth, (sponsor, percent) in enumerate(sponsor_donate_percents):
             if not sponsor:
                 continue
 
@@ -108,6 +107,7 @@ class DonateService:
                 donations_data.append({
                     "receiver": sponsor,
                     "receiver_chat_id": sponsor.user_id,
+                    "sponsor_depth": sponsor_depth + 1,
                     "quantity": donate_sum * percent / 100,
                     "type_": DonateTransactionType.SPONSOR,
                  })
@@ -266,7 +266,6 @@ class DonateService:
             first_sponsor,
             second_sponsor,
             third_sponsor,
-            status,
             donate_sum,
             donations_data,
         )
@@ -357,7 +356,7 @@ class DonateService:
             self._repository_add_bot_to_matrix_task_model.create(
                 AddBotToMatrixTaskEntity(
                     execute_at=now + timedelta(
-                        seconds=settings.add_bot_to_matrix_1_countdown_minutes
+                        minutes=settings.add_bot_to_matrix_1_countdown_minutes
                     ),
                     **task_data,
                 )
@@ -365,7 +364,7 @@ class DonateService:
             self._repository_add_bot_to_matrix_task_model.create(
                 AddBotToMatrixTaskEntity(
                     execute_at=now + timedelta(
-                        seconds=settings.add_bot_to_matrix_2_countdown_minutes
+                        minutes=settings.add_bot_to_matrix_2_countdown_minutes
                     ),
                     **task_data,
                 )

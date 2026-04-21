@@ -64,7 +64,10 @@ class RepositoryTelegramUser(RepositoryBase[TelegramUser]):
         """Получение списка всех приглашенных пользователей"""
         statement = (
             select(TelegramUser)
-            .filter_by(sponsor_user_id=sponsor_user_id)
+            .filter_by(
+                sponsor_user_id=sponsor_user_id,
+                is_bot=False,
+            )
             .order_by(TelegramUser.created_at)
         )
 

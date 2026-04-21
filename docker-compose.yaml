@@ -44,11 +44,27 @@ services:
     env_file:
       - .env
 
-
+  telegram-server:
+    image: aiogram/telegram-bot-api:latest
+    container_name: ${PROJECT_SLUG}_telegram-server
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_APP_API_ID}
+      TELEGRAM_API_HASH: ${TELEGRAM_APP_API_HASH}
+    volumes:
+      - telegram-bot-api-data:/var/lib/telegram-bot-api
+    ports:
+      - ${TELEGRAM_SERVER_PORT}:${TELEGRAM_SERVER_PORT}
+    networks:
+      - internal
+    depends_on:
+      - app
+    env_file:
+      - .env
 
 volumes:
   app_db-template:
   poetry-volume:
+  telegram-bot-api-data:
 
 networks:
   internal:

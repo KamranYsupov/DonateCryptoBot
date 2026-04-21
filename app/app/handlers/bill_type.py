@@ -15,6 +15,7 @@ bill_type_router = Router()
 
 @bill_type_router.message(Command("transfer"))
 @bill_type_router.callback_query(F.data.startswith("confirm_donate_"))
+@bill_type_router.callback_query(F.data == "start_transfer")
 @inject
 async def bill_type_handler(
         aiogram_type: Message | CallbackQuery,
@@ -52,23 +53,29 @@ async def bill_type_handler(
 
     callback = aiogram_type
     callback_data = callback.data.split("_")
-    if "🔴" in callback_data:
-        return
-
-    donate_sum = float(callback_data[-1])
-    status = donate_service.get_donate_status(donate_sum)
-
-    if status in status_list[-2:]:
-        await callback.message.edit_text(
-            "Эта площадка пока не доступна.",
-            reply_markup=get_donate_keyboard(
-                buttons={"🔙 Назад": "donations"}
-            )
-        )
-        return
-
-    callback_data = "send_" + "_".join(callback_data[1:])
     telegram_method = callback.message.edit_text
+
+    if callback.data.startswith("confirm_donate_"):
+        donate_sum = float(callback_data[-1])
+        status = donate_service.get_donate_status(donate_sum)
+
+        if status in status_list[-2:]:
+            await callback.message.edit_text(
+                "Эта площадка пока не доступна.",
+                reply_markup=get_donate_keyboard(
+                    buttons={"🔙 Назад": "donations"}
+                )
+            )
+            return
+
+        if "🔴" in callback_data:
+            return
+
+        callback_data = "send_" + "_".join(callback_data[1:])
+
+    elif callback.data.startswith("start_transfer"):
+        callback_data = "transfer"
+        
 
     await send_bill_type_choice()
 

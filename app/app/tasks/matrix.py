@@ -106,7 +106,8 @@ async def add_bot_to_matrix(
             quantity=quantity,
             type_=data["type_"],
             sender_username=bot_user_schema.username,
-            status=status
+            status=status,
+            sponsor_depth=data.get("sponsor_depth"),
         )
         try:
             await bot.send_message(

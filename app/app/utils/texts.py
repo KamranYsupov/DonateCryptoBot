@@ -193,14 +193,14 @@ def get_transaction_message(
         quantity: float | int,
         type_: DonateTransactionType,
         sender_username: str,
+        sponsor_depth: None | int,
         status: DonateStatus,
 ) -> str:
     if type_ == DonateTransactionType.SYSTEM:
         return f"Системный аккаунт <b>${quantity}</b>"
-    template = "Вам подарок <b>${0}</b> {1}занято место площадка {2}."
-
+    template = "Вам подарок <b>${0}</b> {1} площадка {2}."
     sponsor_text = (
-        f"от реферального партнера @{sender_username} "
+        f"от партнера {sponsor_depth} уровня @{sender_username} "
         if type_ == DonateTransactionType.SPONSOR else ""
     )
 

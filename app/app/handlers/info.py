@@ -1,5 +1,8 @@
+import os
+
 import loguru
 from aiogram import Router, F, html
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, FSInputFile, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
@@ -134,28 +137,66 @@ async def team_inline_handler(
 
 @info_router.message(F.text == "🚀 Продвижение")
 async def referral_message_handler(message: Message):
-    photo = FSInputFile("app/media/base_photo.jpg")
+    file_id_path = "app/media/kod_deneg_MP4_file_id.txt"
+    def load_file_id() -> str | None:
+        if os.path.exists(file_id_path):
+            with open(file_id_path, "r") as f:
+                return f.read().strip()
+
+        return None
+
+    def save_file_id(file_id: str):
+        with open(file_id_path, "w") as f:
+            f.write(file_id)
+
     keyboard = InlineKeyboardBuilder()
     registration_link = f"{settings.bot_link}?start={message.from_user.id}"
-    registration_button = InlineKeyboardButton(
-        text="🔑 Получить доступ",
-        url=registration_link
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🔑 Получить доступ",
+            url=registration_link
+        )
     )
-    keyboard.add(registration_button)
-    await message.answer_photo(
-        photo=photo,
-        caption=(
-            "🎬 «Код Денег» — нейронаучный фильм. Никаких сложных техник. "
-            "Просто берёшь бумагу, пишешь желаемую сумму. И смотришь видео.\n\n"
-            "🧠 Без магии. Без усилий. Твой мозг сам переключается из дефицита в изобилие."
-            " Ты начинаешь замечать деньги там, где раньше видел стены.\n\n"
-            "📎 Всё, что нужно — фильм, инструкция и чат. Внутри бота."
-        ),
+
+    caption = (
+        "💰 «Код Денег» — бот автоматически закрывает 2 места под вами и под каждым партнёром.\n"
+        "✅ 10% с каждого закрытого места\n"
+        "✅ Реферальные бонусы 20% / 10% / 5%\n"
+        "✅ Подходит даже тем, у кого нет опыта\n\n"
+        "<a href='https://telegra.ph/KODDENEG-04-20'>📖 Подробная текстовая презентация с примерами расчётов.</a>"
+    )
+    answer_video_kwargs = dict(
+        caption=caption,
         reply_markup=keyboard.as_markup(),
+        supports_streaming=True,
     )
+
+    video_file_id = load_file_id()
+    try:
+        if video_file_id:
+            msg = await message.answer_video(
+                video=video_file_id,
+                **answer_video_kwargs
+            )
+        else:
+            raise ValueError("file_id not found")
+
+    except (TelegramBadRequest, ValueError):
+        video = FSInputFile("app/media/kod_deneg.MP4")
+
+        msg = await message.answer_video(
+            video=video,
+            **answer_video_kwargs
+        )
+
     await message.answer(
         f"Ваша реферальная ссылка: {registration_link}",
     )
+
+    if msg.video:
+        save_file_id(msg.video.file_id)
+
 
 
 
