@@ -232,7 +232,7 @@ async def referral_handler(
     default_buttons = {}
 
     if not invited_users:
-        return "У вас пока нет реферралов.", get_donate_keyboard(buttons=default_buttons)
+        return "У вас пока нет рефералов.", get_donate_keyboard(buttons=default_buttons)
 
     paginator = Paginator(
         invited_users,
