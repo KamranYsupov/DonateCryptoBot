@@ -59,15 +59,6 @@ async def bill_type_handler(
         donate_sum = float(callback_data[-1])
         status = donate_service.get_donate_status(donate_sum)
 
-        if status in status_list[-2:]:
-            await callback.message.edit_text(
-                "Эта площадка пока не доступна.",
-                reply_markup=get_donate_keyboard(
-                    buttons={"🔙 Назад": "donations"}
-                )
-            )
-            return
-
         if "🔴" in callback_data:
             return
 

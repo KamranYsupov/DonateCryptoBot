@@ -22,6 +22,7 @@ async def export_users_to_excel(
     data = []
 
     users: list[TelegramUser] = await telegram_user_service.get_list(
+        is_bot=False,
         join_sponsor=True
     )
 
