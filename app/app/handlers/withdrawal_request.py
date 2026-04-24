@@ -77,7 +77,7 @@ async def process_wallet_address(
         user_id=message.from_user.id
     )
     await message.answer(
-        f"Отправьте количесто токенов для вывода(всего <b>{int(telegram_user.bill)}</b>)."
+        f"Отправьте количесто токенов для вывода(всего <b>{int(telegram_user.bill_for_withdraw)}</b>)."
     )
 
 
@@ -166,7 +166,7 @@ async def send_withdrawal_request_handler(
             **state_data,
         )
     )
-    telegram_user.bill -= state_data["tokens_count"]
+    telegram_user.bill_for_withdraw -= state_data["tokens_count"]
     await state.clear()
     await callback.message.edit_text(
         "Заявка на вывод средств отправлена ✅. Средства поступят в течение 24 часов.",
