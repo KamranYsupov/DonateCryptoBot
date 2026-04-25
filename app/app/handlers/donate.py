@@ -494,10 +494,14 @@ async def get_transactions_list_to_me(
                 donate_id=transaction.donate_id
             )
             if transaction.type_ == DonateTransactionType.SPONSOR:
-                sponsor = await telegram_user_service.get_telegram_user(
+                sender = await telegram_user_service.get_telegram_user(
                     id=donate.telegram_user_id
                 )
-                message += f"<b>От партнера первой линии @{sponsor.username}.</b>\n\n"
+                sponsor_depth = donate_service.get_sponsor_depth(
+                    transaction.quantity,
+                    donate.quantity
+                )
+                message += f"<b>От партнера {sponsor_depth} линии @{sender.username}.</b>\n\n"
             elif transaction.type_ == DonateTransactionType.MATRIX:
                 status = donate_service.get_donate_status(donate.quantity)
                 message += f"<b>Площадка {status.value}.</b>\n\n"

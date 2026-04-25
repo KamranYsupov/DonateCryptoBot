@@ -58,6 +58,20 @@ class DonateService:
         return None
 
     @staticmethod
+    def get_sponsor_depth(transaction_quantity: float | int, donate_quantity: int) -> int | None:
+        transaction_percent = int(transaction_quantity * 100 / donate_quantity)
+
+        sponsors_percents = [
+            settings.first_sponsor_donate_percent,
+            settings.second_sponsor_donate_percent,
+            settings.third_sponsor_donate_percent,
+        ]
+        if transaction_percent in sponsors_percents:
+            return sponsors_percents.index(transaction_percent) +  1
+
+        return None
+
+    @staticmethod
     def _extend_donations_data(data: dict, sponsor: TelegramUser, donate: int | float):
         loguru.logger.info(str(donate))
         if data.get(sponsor):
