@@ -48,7 +48,7 @@ async def withdrawal_request_handler(
     await callback.message.delete()
     await callback.message.answer(
         "Для вывода отправьте адрес кошелька USDT в сети TON.\n\n"
-        "<b>Важно:</b> <em>при указании неверного адреса токены будут утеряны</em>.",
+        "<b>Важно:</b> <em>при указании неверного адреса средства будут утеряны</em>.",
         reply_markup=reply_cancel_keyboard,
     )
 
@@ -77,7 +77,7 @@ async def process_wallet_address(
         user_id=message.from_user.id
     )
     await message.answer(
-        f"Отправьте количесто токенов для вывода(всего <b>{int(telegram_user.bill_for_withdraw)}</b>)."
+        f"Отправьте количесто USDT для вывода(всего <b>{int(telegram_user.bill_for_withdraw)}</b>)."
     )
 
 
@@ -103,6 +103,7 @@ async def process_tokens_count(
         await message.answer(
             f"Минимальная сумма для вывода {int(settings.withdrawal_min_tokens_count)}"
         )
+        return
 
     telegram_user = await telegram_user_service.get_telegram_user(
         user_id=message.from_user.id
@@ -120,7 +121,7 @@ async def process_tokens_count(
     await message.answer("✍️", reply_markup=get_reply_keyboard(telegram_user))
     await message.answer(
         "Вы уверены? "
-        "После создания заявки указанное число токенов спишется с вашего баланса.",
+        "После создания заявки указанное число спишется с вашего баланса.",
         reply_markup=get_donate_keyboard(
             buttons={
                 "Да": f"send_withdrawal_request",
@@ -155,7 +156,7 @@ async def send_withdrawal_request_handler(
 
     if state_data["tokens_count"] > telegram_user.bill_for_withdraw:
         await callback.message.edit_text(
-            "❌ Число токенов превышает сумму на балансе.",
+            "❌ Число превышает сумму на балансе.",
         )
         await state.clear()
         return

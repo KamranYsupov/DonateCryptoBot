@@ -81,7 +81,7 @@ async def process_receiver_username(
     await state.update_data(receiver_username=username)
     await state.set_state(TransferState.tokens_count)
     await message.answer(
-        f"Отправьте количество токенов для перевода."
+        f"Напишите количество USDT для перевода."
     )
 
 
@@ -131,7 +131,7 @@ async def process_tokens_count(
         if receiver_username[0] != "@" else receiver_username
 
     await message.answer(
-        f"Перевод {tokens_count} токенов на счёт пользователя {receiver_username}.\n\n"
+        f"Перевод {tokens_count} USDT на счёт пользователя {receiver_username}.\n\n"
         "Вы уверены?",
         reply_markup=get_donate_keyboard(
             buttons={
@@ -185,7 +185,7 @@ async def transfer_tokens_handler(
     try:
         await callback.bot.send_message(
             chat_id=receiver.user_id,
-            text=f"Пользователь @{sender.username} перевел {tokens_count} токенов на ваш счёт."
+            text=f"Пользователь @{sender.username} перевел {tokens_count} USDT на ваш счёт."
         )
     except TelegramAPIError:
         pass

@@ -93,7 +93,7 @@ async def buy_tokens_handler(
     response = await crypto_bot_api_service.create_invoice(
         amount=tokens_count,
         payload=json.dumps(payload),
-        description=f"Оплата {tokens_count} токенов.",
+        description=f"Оплата {tokens_count} USDT.",
         asset="USDT",
     )
     if not response.get("ok"):
@@ -164,7 +164,7 @@ async def check_invoice_handler(
         await callback.message.delete()
         await callback.message.answer("Оплата прошла успешно ✅")
         await callback.message.answer(
-            f"На баланс зачислено {tokens_count} токенов.",
+            f"На баланс зачислено {tokens_count} USDT.",
             reply_markup=get_donate_keyboard(buttons={"⚡️ Активация": "donations"})
         )
         return

@@ -288,7 +288,7 @@ async def confirm_donate(
     if need_to_buy_tokens < 0:
         need_to_buy_tokens = int(abs(need_to_buy_tokens))
         await callback.message.edit_text(
-            f"Для активации уровня нехватает {need_to_buy_tokens} токенов.",
+            f"Для активации уровня нехватает {need_to_buy_tokens} USDT.",
             reply_markup=get_donate_keyboard(
                 buttons={
                     "Преобрести 💳": f"buy_tokens_{need_to_buy_tokens}",
