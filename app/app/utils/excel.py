@@ -25,9 +25,11 @@ async def export_users_to_excel(
         is_bot=False,
         join_sponsor=True
     )
+    count = 1
 
     for user in users:
         data.append({
+            "Порядок": count,
             "Уровень глубины": user.depth_level,
             "Логин ТГ": user.username,
             "Имя фамилия": user.full_name,
@@ -40,6 +42,7 @@ async def export_users_to_excel(
             "Дата время регистрации": \
                 user.created_at.strftime("%d.%m.%Y %H:%M")
         })
+        count += 1
 
     df = pd.DataFrame(data)
     output = BytesIO()
