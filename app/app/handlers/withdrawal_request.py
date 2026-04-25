@@ -189,7 +189,7 @@ async def withdrawal_requests_handler(
     back_button = {"🔙 Назад": "donations"}
 
     withdrawal_requests = await withdrawal_request_service.get_withdrawal_requests(
-        order_by=[WithdrawalRequest.is_paid.desc(), WithdrawalRequest.created_at.desc()],
+        order_by=[WithdrawalRequest.is_paid, WithdrawalRequest.created_at],
     )
     if not withdrawal_requests:
         await callback.message.edit_text(
