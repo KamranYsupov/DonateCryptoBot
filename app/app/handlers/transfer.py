@@ -131,7 +131,7 @@ async def process_tokens_count(
         if receiver_username[0] != "@" else receiver_username
 
     await message.answer(
-        f"Перевод {tokens_count} USDT на счёт пользователя {receiver_username}.\n\n"
+        f"Перевод {tokens_count} USDT пользователю {receiver_username}.\n\n"
         "Вы уверены?",
         reply_markup=get_donate_keyboard(
             buttons={
