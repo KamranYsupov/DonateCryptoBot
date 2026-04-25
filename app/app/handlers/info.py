@@ -252,6 +252,11 @@ async def referral_handler(
     if paginator.has_next():
         buttons |= {"След. ▶": f"referrals_{page_number + 1}"}
 
+    if len(buttons) == 2:
+        sizes = (2, 1, 1)
+    else:
+        sizes = (1, 1, 1)
+
     if current_user.is_admin:
         buttons.update({
             "Отправить рассылку рефералам 📨": f"referral_message_0_{page_number}",
@@ -259,11 +264,6 @@ async def referral_handler(
         })
     else:
         buttons.update({"Отправить рассылку 📨": f"referral_message_0_{page_number}"})
-
-    if len(list(buttons.keys())) == 3:
-        sizes = (2, 1, 1)
-    else:
-        sizes = (1, 1, 1)
 
     buttons.update(default_buttons)
 
@@ -283,7 +283,7 @@ async def referral_handler(
 
 
 @info_router.message(F.text == "⚙️ Настройки")
-@info_router.callback_query(F.data.startswith("send_referrals_"))
+@info_router.callback_query(F.data.startswith("referrals_"))
 @inject
 async def send_referral_message_handler(
         aiogram_type: Message | CallbackQuery,
@@ -293,8 +293,10 @@ async def send_referral_message_handler(
 ) -> None:
     if isinstance(aiogram_type, Message):
         telegram_method = aiogram_type.answer
+        page_number = 1
     else:
         callback = aiogram_type
+        page_number = int(callback.data.split("_")[-1])
         telegram_method = callback.message.edit_text
 
     current_user = await telegram_user_service.get_telegram_user(
@@ -305,6 +307,7 @@ async def send_referral_message_handler(
 
     message_text, reply_markup = await referral_handler(
         current_user=current_user,
+        page_number=page_number,
     )
 
     await telegram_method(
