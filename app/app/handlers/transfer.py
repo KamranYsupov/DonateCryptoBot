@@ -185,7 +185,7 @@ async def transfer_tokens_handler(
     try:
         await callback.bot.send_message(
             chat_id=receiver.user_id,
-            text=f"Пользователь @{sender.username} перевел {tokens_count} USDT на ваш счёт."
+            text=f"Получен перевод {tokens_count} USDT от @{sender.username}."
         )
     except TelegramAPIError:
         pass
