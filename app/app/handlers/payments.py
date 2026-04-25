@@ -93,7 +93,7 @@ async def buy_tokens_handler(
     response = await crypto_bot_api_service.create_invoice(
         amount=tokens_count,
         payload=json.dumps(payload),
-        description=f"Оплата {tokens_count} USDT.",
+        description=f"Пополнение {tokens_count} USDT.",
         asset="USDT",
     )
     if not response.get("ok"):
