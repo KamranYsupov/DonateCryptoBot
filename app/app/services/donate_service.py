@@ -1,3 +1,4 @@
+import time
 import uuid
 from copy import copy
 from datetime import datetime, timedelta
@@ -42,7 +43,9 @@ class DonateService:
     def get_donate_status(
             donate_sum: int,
     ) -> DonateStatus | None:
-        if donate_sum == 25:
+        if donate_sum == 10:
+            return DonateStatus.TEST
+        elif donate_sum == 25:
             return DonateStatus.BASE
         elif donate_sum == 50:
             return DonateStatus.BRONZE
@@ -411,6 +414,9 @@ class DonateService:
                 owner_id=next_sponsor.id,
                 status=status,
             )
+            if not next_sponsor_matrices:
+                user_to_add = next_sponsor
+                continue
 
             for matrix in next_sponsor_matrices:
                 if len(matrix.telegram_users) < settings.matrix_max_length:
@@ -422,6 +428,7 @@ class DonateService:
                         level_length,
                     )
                     return matrix
+
 
 
 

@@ -25,6 +25,7 @@ class MatrixBuildType(enum.Enum):
 
 class DonateStatus(enum.Enum):
     NOT_ACTIVE = "не активирован"
+    TEST = "Тест"
     BASE = "Старт"
     BRONZE = "Бронза"
     SILVER = "Серебро"
@@ -35,6 +36,7 @@ class DonateStatus(enum.Enum):
     @classmethod
     def get_donations_data(cls):
         return {
+            cls.TEST: 10,
             cls.BASE: 25,
             cls.BRONZE: 50,
             cls.SILVER: 100,
@@ -52,6 +54,7 @@ class DonateStatus(enum.Enum):
     @classmethod
     def get_status_list(cls) -> list:
         return [
+            cls.TEST,
             cls.BASE,
             cls.BRONZE,
             cls.SILVER,
@@ -72,6 +75,7 @@ status_emoji_list = [
     "7️⃣" ,
 ]
 statuses_colors_data = {
+    DonateStatus.TEST: "🔘",
     DonateStatus.BASE: "🟢",
     DonateStatus.BRONZE : "🟠",
     DonateStatus.SILVER: "⚪",
