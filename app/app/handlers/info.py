@@ -31,7 +31,7 @@ info_router = Router()
 async def about_handler(
         message: Message,
 ) -> None:
-    base_photo = FSInputFile("app/media/base_photo.jpg")
+    base_photo = FSInputFile("app/media/statuses.jpg")
 
     presentation_keyboard = InlineKeyboardBuilder()
     presentation_keyboard.add(
