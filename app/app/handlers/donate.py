@@ -165,6 +165,15 @@ async def donations_menu_handler(
         user_id=aiogram_type.from_user.id
     )
     default_buttons = {}
+    message_text = (
+        f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
+        f"Баланс для активации: "
+        f"<b>${current_user.bill_for_activation}</b>\n"
+        "Баланс для вывода: "
+        f"<b>${current_user.bill_for_withdraw}</b>\n"
+        "Всего заработано: "
+        f"<b>${current_user.donates_sum}</b>\n"
+    )
 
     if current_user.status != DonateStatus.NOT_ACTIVE:
         default_buttons.update({
@@ -183,16 +192,11 @@ async def donations_menu_handler(
         message_text = (
             f"Регистраций в KOD💵DENEG: <b>{len(users)}</b>\n"
             f"\n{statuses_statistic_message}\n"
-            f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
             "Всего подарили: "
             f"<b>${donates_sum}</b>\n"
-            f"Баланс для активации: "
-            f"<b>{current_user.bill_for_activation}</b>\n"
-            "Баланс для вывода: "
-            f"<b>{current_user.bill_for_withdraw}</b>\n"
             "Системный баланс: "
-            f"<b>{system_bill}</b>\n"
-        )
+            f"<b>${system_bill}</b>\n\n"
+        ) + message_text
         buttons = default_buttons
         admin_buttons = {
             "Скачать базу ⬇️": "excel_users",
@@ -222,16 +226,11 @@ async def donations_menu_handler(
         ))
     )
     message_text = (
-            f"Мой куратор: "
-            + ("@" + sponsor.username if sponsor.username else sponsor.first_name)
-            + "\n"
-              f"Мой статус: <b>{current_user.status.value}</b>\n"
-              f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
-              f"Баланс для активации: "
-              f"<b>{current_user.bill_for_activation}</b>\n"
-              "Баланс для вывода: "
-              f"<b>{current_user.bill_for_withdraw}</b>\n"
-    )
+        f"Мой куратор: "
+        + ("@" + sponsor.username if sponsor.username else sponsor.first_name)
+        + "\n"
+        f"Мой статус: <b>{current_user.status.value}</b>\n"
+    ) + message_text
 
     buttons.update(default_buttons)
     buttons.update({
@@ -389,7 +388,10 @@ async def donate_handler(
         )
         await telegram_user_service.update(
             obj_id=sponsor.id,
-            obj_in={"bill_for_withdraw": sponsor.bill_for_withdraw + transaction["quantity"]},
+            obj_in={
+                "donates_sum": sponsor.donates_sum + transaction["quantity"],
+                "bill_for_withdraw": sponsor.bill_for_withdraw + transaction["quantity"]
+            },
         )
 
     await callback.message.delete()

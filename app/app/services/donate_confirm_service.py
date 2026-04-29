@@ -175,5 +175,14 @@ class DonateConfirmService:
 
         return sum(transactions_quantities) - sum(bots_transactions_quantities)
 
-    async def get_donates_sum(self) -> int:
-        return sum(self._repository_donate.get_donates_quantities())
+    async def get_donates_sum(self, *args, **kwargs) -> int:
+        return sum(self._repository_donate.get_donates_quantities(*args, **kwargs))
+
+    async def get_transactions_sum(self, *args, **kwargs):
+        return sum(
+            self._repository_donate_transaction.get_transactions_quantities(
+                *args,
+                **kwargs
+            )
+        )
+

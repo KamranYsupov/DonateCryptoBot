@@ -93,7 +93,10 @@ async def add_bot_to_matrix(
         )
         await telegram_user_service.update(
             obj_id=sponsor.id,
-            obj_in={"bill_for_withdraw": sponsor.bill_for_withdraw + transaction["quantity"]},
+            obj_in={
+                "donates_sum": sponsor.donates_sum + transaction["quantity"],
+                "bill_for_withdraw": sponsor.bill_for_withdraw + transaction["quantity"]
+            },
         )
 
     admin_user = await telegram_user_service.get_telegram_user(is_admin=True)

@@ -41,6 +41,7 @@ class Container(containers.DeclarativeContainer):
             "app.handlers.transfer",
             "app.handlers.worker",
             "app.handlers.bill_type",
+            "app.handlers.aggregators",
             "app.middlewares.ban_user",
             "app.middlewares.subscriptions",
             "app.tasks.donate",

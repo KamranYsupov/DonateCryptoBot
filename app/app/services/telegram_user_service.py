@@ -1,5 +1,5 @@
 import uuid
-from typing import Tuple, Any
+from typing import Tuple, Any, List
 
 from app.repositories.telegram_user import RepositoryTelegramUser
 from app.models.telegram_user import TelegramUser
@@ -105,3 +105,6 @@ class TelegramUserService:
 
     async def update(self, obj_id: uuid.UUID, obj_in):
         return self._repository_telegram_user.update(obj_id=obj_id, obj_in=obj_in)
+
+    async def get_ids(self, *args, **kwargs) -> List[uuid.UUID]:
+        return self._repository_telegram_user.get_ids(*args, **kwargs)

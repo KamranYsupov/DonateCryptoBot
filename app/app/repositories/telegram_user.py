@@ -30,6 +30,14 @@ class RepositoryTelegramUser(RepositoryBase[TelegramUser]):
         )
         return self._session.execute(statement).scalars().all()
 
+    def get_ids(self, *args, **kwargs) -> list[UUID]:
+        statement = (
+            select(TelegramUser.id)
+            .filter(*args)
+            .filter_by(**kwargs)
+        )
+        return self._session.execute(statement).scalars().all()
+
     def get_active_users_by_ids(self, ids: list[UUID], **kwargs):
         statement = (
             select(TelegramUser)
