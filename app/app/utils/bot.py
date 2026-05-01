@@ -284,7 +284,7 @@ async def send_transaction_messages(
             f"{status.value.upper()}</b>\n"
             f"🎁 Реф. бонус от {sponsor_depth} линии: +{quantity}$\n</b>"
             "🤝 Команда растёт\n\n"
-            "🔥 Делитесь фильмом — получайте бонусы."
+            "🔥 На Шаг ближе к Триумфу!"
         )
         await send_message_or_pass(
             bot=bot,
@@ -305,7 +305,7 @@ async def send_transaction_messages(
             f"🎯 Площадка: <b>{statuses_colors_data.get(status)} "
             f"{status.value.upper()}</b> \n\n"
             #f"📦 <b>{matrix_length} из {settings.matrix_max_length}</b> мест занято\n\n"
-            "🔥 На Шаг ближе к Триумфу!"
+            "🔥 Делитесь фильмом — получайте бонусы."
         )
         await send_message_or_pass(
             bot=bot,
