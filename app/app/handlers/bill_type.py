@@ -58,10 +58,6 @@ async def bill_type_handler(
     if callback.data.startswith("confirm_donate_"):
         donate_sum = float(callback_data[-1])
         status = donate_service.get_donate_status(donate_sum)
-
-        if "🔴" in callback_data:
-            return
-
         callback_data = "send_" + "_".join(callback_data[1:])
 
     elif callback.data.startswith("start_transfer"):

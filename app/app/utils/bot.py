@@ -1,6 +1,7 @@
 from typing import Dict, Any
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramAPIError
 from aiogram.types import (
     Message,
     InlineKeyboardMarkup,
@@ -8,6 +9,9 @@ from aiogram.types import (
 )
 
 from app.loader import bot
+from app.core.config import settings
+from app.models.donate import DonateTransactionType
+from app.models.telegram_user import DonateStatus, status_emoji_list, statuses_colors_data
 
 
 async def echo_message_with_media(
@@ -244,3 +248,71 @@ def serialize_reply_markup(reply_markup) -> Dict[str, Any]:
             ]
         }
     return None
+
+
+async def send_message_or_pass(bot: Bot, *args, **kwargs):
+    try:
+        await bot.send_message(*args, **kwargs)
+    except TelegramAPIError:
+        pass
+
+async def send_transaction_messages(
+        bot: Bot,
+        chat_id: int,
+        quantity: float | int,
+        type_: DonateTransactionType,
+        sender_username: str,
+        sponsor_depth: None | int,
+        status: DonateStatus,
+        matrix_length: int,
+):
+    if int(quantity) == quantity:
+        quantity = str(int(quantity))
+
+    if type_ == DonateTransactionType.SYSTEM:
+        await send_message_or_pass(
+            bot=bot,
+            text=f"Системный аккаунт <b>${quantity}</b>",
+            chat_id=chat_id,
+        )
+        return
+
+    if type_ == DonateTransactionType.SPONSOR:
+        message_text = (
+            "<b>👥 {0} АКТИВИРОВАЛ ТЕСТ\n"
+            f"🎁 Реф. бонус от {sponsor_depth} линии: +{quantity}$\n</b>"
+            "🤝 Команда растёт\n\n"
+            "🔥 Делитесь фильмом — получайте бонусы."
+        )
+        await send_message_or_pass(
+            bot=bot,
+            text=message_text.format(f"@{sender_username}"),
+            chat_id=chat_id,
+        )
+        await send_message_or_pass(
+            bot=bot,
+            text=message_text.format("ПАРТНЁР"),
+            chat_id=settings.donates_channel_id,
+        )
+        return
+
+    if type_ == DonateTransactionType.MATRIX:
+        message_text = (
+            "<b>🤖 БОТ ЗАКРЫЛ МЕСТО</b>\n"
+            f"💰 <b>+{quantity}$</b> на счёт\n"
+            f"🎯 Площадка: <b>{statuses_colors_data.get(status)} "
+            f"{status.value.upper()}</b> \n\n"
+            #f"📦 <b>{matrix_length} из {settings.matrix_max_length}</b> мест занято\n\n"
+            "🔥 На Шаг ближе к Триумфу!"
+        )
+        await send_message_or_pass(
+            bot=bot,
+            text=message_text,
+            chat_id=chat_id,
+        )
+        await send_message_or_pass(
+            bot=bot,
+            text=message_text,
+            chat_id=settings.donates_channel_id,
+        )
+        return

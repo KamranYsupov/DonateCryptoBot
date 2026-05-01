@@ -35,9 +35,10 @@ from app.utils.sponsor import check_is_second_status_higher
 from app.utils.texts import get_donate_confirm_message
 from app.utils.excel import export_users_to_excel
 from app.utils.texts import get_user_statuses_statistic_message
-from app.utils.texts import get_transaction_message
 from app.models.donate import DonateTransactionType
 from app.models.donate import DonateTransactionType
+from app.loader import bot
+from app.utils.bot import send_transaction_messages
 
 donate_router = Router()
 
@@ -219,12 +220,7 @@ async def donations_menu_handler(
     sponsor = await telegram_user_service.get_telegram_user(
         user_id=current_user.sponsor_user_id
     )
-    buttons.update(get_reversed_dict(
-        get_donations_keyboard(
-            current_status=current_user.status,
-            status_list=status_list,
-        ))
-    )
+    buttons.update(get_donations_keyboard())
     message_text = (
         f"Мой куратор: "
         + ("@" + sponsor.username if sponsor.username else sponsor.first_name)
@@ -355,6 +351,7 @@ async def donate_handler(
         donations_data,
         status,
     )
+    matrix_length = len(matrix.telegram_users)
 
     donate = await donate_confirm_service.create_donate(
         telegram_user_id=current_user.id,
@@ -402,20 +399,16 @@ async def donate_handler(
     )
 
     for data in donations_data:
-        message_text = get_transaction_message(
+        await send_transaction_messages(
+            bot=bot,
+            chat_id=data["receiver_chat_id"],
             quantity=data["quantity"],
             type_=data["type_"],
             sender_username=callback.from_user.username,
             status=status,
             sponsor_depth=data.get("sponsor_depth"),
+            matrix_length=matrix_length,
         )
-        try:
-            await callback.bot.send_message(
-                text=message_text,
-                chat_id=data["receiver_chat_id"],
-            )
-        except TelegramAPIError:
-            pass
 
 
 @donate_router.callback_query(F.data == "transactions")

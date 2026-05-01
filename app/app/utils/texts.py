@@ -189,20 +189,3 @@ def get_matrix_info_message(
 
     return "\n".join(lines)
 
-def get_transaction_message(
-        quantity: float | int,
-        type_: DonateTransactionType,
-        sender_username: str,
-        sponsor_depth: None | int,
-        status: DonateStatus,
-) -> str:
-    if type_ == DonateTransactionType.SYSTEM:
-        return f"Системный аккаунт <b>${quantity}</b>"
-    template = "Вам подарок <b>${0}</b> {1}площадка {2}."
-    sponsor_text = (
-        f"от партнера {sponsor_depth} уровня @{sender_username} "
-        if type_ == DonateTransactionType.SPONSOR else ""
-    )
-
-    return template.format(quantity, sponsor_text, status.value)
-

@@ -23,8 +23,8 @@ from app.services.matrix_service import AddBotToMatrixTaskModelService
 from app.db.commit_decorator import commit_and_close_session
 from app.core.container import Container
 from app.models.matrix import AddBotToMatrixTaskModel
-from app.utils.texts import get_transaction_message
 from app.models.donate import DonateTransactionType
+from app.utils.bot import send_message_or_pass, send_transaction_messages
 
 
 @inject
@@ -79,6 +79,7 @@ async def add_bot_to_matrix(
         quantity=donate_sum,
     )
     bot_user.status = matrix.status
+    matrix_length = len(matrix.telegram_users)
 
     transactions_data = await donate_confirm_service.get_donate_transactions_by_donate_id(
         donate_id=donate.id, return_data=True,
@@ -105,29 +106,22 @@ async def add_bot_to_matrix(
 
     for data in donations_data:
         quantity = data["quantity"]
-        message_text = get_transaction_message(
+        await send_transaction_messages(
+            bot=bot,
+            chat_id=data["receiver_chat_id"],
             quantity=quantity,
             type_=data["type_"],
             sender_username=bot_user_schema.username,
             status=status,
             sponsor_depth=data.get("sponsor_depth"),
+            matrix_length=matrix_length,
         )
-        try:
-            await bot.send_message(
-                text=message_text,
-                chat_id=data["receiver_chat_id"],
-            )
-        except TelegramAPIError:
-            pass
-        try:
-            await bot.send_message(
-                text=(
-                    f"<b><em>-{quantity} от системного баланса.</em></b>\n"
-                ),
-                chat_id=admin_telegram_id,
-            )
-        except TelegramAPIError:
-            pass
+
+        await send_message_or_pass(
+            bot=bot,
+            text=f"<b><em>-{quantity} от системного баланса.</em></b>\n",
+            chat_id=admin_telegram_id,
+        )
 
 
 @inject
