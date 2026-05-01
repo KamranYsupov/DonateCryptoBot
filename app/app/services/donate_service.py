@@ -429,28 +429,20 @@ class DonateService:
                     )
                     return matrix
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            if next_sponsor.is_admin:
+                matrix_entity = MatrixEntity(
+                    owner_id=next_sponsor.id,
+                    status=status,
+                )
+                matrix = self._repository_matrix.create(obj_in=matrix_entity)
+                (matrix.matrices,
+                 matrix.matrix_telegram_usernames,
+                 matrix.telegram_users) = {}, {}, []
+                await self._handle_insertion_to_free_matrix(
+                    matrix,
+                    current_user,
+                    donate_sum,
+                    donations_data,
+                    level_length,
+                )
+                return matrix
