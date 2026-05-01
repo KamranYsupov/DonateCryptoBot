@@ -295,7 +295,6 @@ async def confirm_donate(
 
         return
 
-
     await callback.message.edit_text(
         text=f"Для активации площадки с вашего баланса будет списано ${donate_sum}\n\n"
         "Продолжить?",
@@ -326,11 +325,28 @@ async def donate_handler(
     bill_type = callback.data.split("_")[-1]
     donate_sum = int(callback.data.split("_")[-2])
 
-    status = donate_service.get_donate_status(donate_sum)
     current_user_with_sponsors = await telegram_user_service.get_telegram_user_with_sponsors(
         user_id=callback.from_user.id
     )
     current_user, first_sponsor, second_sponsor, third_sponsor = current_user_with_sponsors
+
+    need_to_buy_tokens = getattr(current_user, f"bill_for_{bill_type}") - donate_sum
+    if need_to_buy_tokens < 0:
+        need_to_buy_tokens = int(abs(need_to_buy_tokens))
+        await callback.message.edit_text(
+            f"Для активации уровня нехватает {need_to_buy_tokens} USDT.",
+            reply_markup=get_donate_keyboard(
+                buttons={
+                    "Преобрести 💳": f"buy_tokens_{need_to_buy_tokens}",
+                    "🔙 Назад": f"donations",
+                },
+                sizes=(1, 1),
+            ),
+        )
+
+        return
+
+    status = donate_service.get_donate_status(donate_sum)
 
     if not callback.from_user.username:
         await callback.message.edit_text(
