@@ -279,7 +279,8 @@ async def send_transaction_messages(
 
     if type_ == DonateTransactionType.SPONSOR:
         message_text = (
-            "<b>👥 {0} АКТИВИРОВАЛ ТЕСТ\n"
+            f"<b>👥 {0} АКТИВИРОВАЛ <b>{statuses_colors_data.get(status)} "
+            f"{status.value.upper()}</b>\n"
             f"🎁 Реф. бонус от {sponsor_depth} линии: +{quantity}$\n</b>"
             "🤝 Команда растёт\n\n"
             "🔥 Делитесь фильмом — получайте бонусы."
