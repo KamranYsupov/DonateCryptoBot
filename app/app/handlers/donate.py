@@ -378,7 +378,6 @@ async def donate_handler(
         donations_data,
         status,
     )
-    matrix_length = len(matrix.telegram_users)
 
     donate = await donate_confirm_service.create_donate(
         telegram_user_id=current_user.id,
@@ -434,7 +433,7 @@ async def donate_handler(
             sender_username=callback.from_user.username,
             status=status,
             sponsor_depth=data.get("sponsor_depth"),
-            matrix_length=matrix_length,
+            matrix_length=data.get("matrix_length"),
         )
 
 

@@ -141,44 +141,42 @@ class DonateService:
             is_bot: bool,
     ) -> list[dict[str, Any]]:
         matrix_donate_sum = donate_sum * settings.matrix_donate_percent / 100
-        parents_owners_ids = [parent.owner_id for parent in parents]
 
-        path_owner_ids = self._repository_matrix.get_owner_ids_by_matrices_ids_list(
-            matrices_ids=free_place_path
-        ) if free_place_path else []
+        path_matrices = list(self._repository_matrix.get_matrices_by_ids_list(free_place_path))
+        path_matrices.extend(parents)
+        path_matrices.append(matrix)
 
-        donate_receivers_ids = (
-            [matrix.owner_id]
-            + path_owner_ids
-            + parents_owners_ids
-        )
+        path_matrices_ids_map = {}
+        donate_receivers_ids = []
+        for path_matrix in path_matrices:
+            donate_receivers_ids.append(path_matrix.owner_id)
+            path_matrices_ids_map[path_matrix.owner_id] = path_matrix
 
         donate_receivers = self._repository_telegram_user.get_active_users_by_ids(
             ids=donate_receivers_ids,
             is_bot=False,
         )
-        sponsor_donations_quantities = [
-            transaction["quantity"] for transaction in donations_data
-        ]
 
         for receiver in donate_receivers:
             if receiver.status == DonateStatus.NOT_ACTIVE:
                 continue
+
+            receiver_matrix = path_matrices_ids_map[receiver.id]
 
             donations_data.append({
                 "receiver": receiver,
                 "receiver_chat_id": receiver.user_id,
                 "quantity": matrix_donate_sum,
                 "type_": DonateTransactionType.MATRIX,
+                "matrix_length": len(receiver_matrix.telegram_users) + 1
             })
 
         if is_bot:
             return donations_data
 
-        donate_reminder = donate_sum - (
-            (len(donate_receivers) * matrix_donate_sum)
-            + sum(sponsor_donations_quantities)
-        )
+        quantities = [transaction["quantity"] for transaction in donations_data]
+        quantities_sum = sum(quantities)
+        donate_reminder = donate_sum - quantities_sum
 
         if donate_reminder:
             admin_user = self._repository_telegram_user.get(is_admin=True)

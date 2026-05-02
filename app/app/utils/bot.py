@@ -303,8 +303,8 @@ async def send_transaction_messages(
             "<b>🤖 БОТ ЗАКРЫЛ МЕСТО</b>\n"
             f"💰 <b>+{quantity}$</b> на счёт\n"
             f"🎯 Площадка: <b>{statuses_colors_data.get(status)} "
-            f"{status.value.upper()}</b> \n\n"
-            #f"📦 <b>{matrix_length} из {settings.matrix_max_length}</b> мест занято\n\n"
+            f"{status.value.upper()}</b> \n"
+            f"📦 <b>{matrix_length} из {settings.matrix_max_length}</b> мест занято\n\n"
             "🔥 Делитесь фильмом — получайте бонусы."
         )
         await send_message_or_pass(

@@ -79,7 +79,6 @@ async def add_bot_to_matrix(
         quantity=donate_sum,
     )
     bot_user.status = matrix.status
-    matrix_length = len(matrix.telegram_users)
 
     transactions_data = await donate_confirm_service.get_donate_transactions_by_donate_id(
         donate_id=donate.id, return_data=True,
@@ -114,7 +113,7 @@ async def add_bot_to_matrix(
             sender_username=bot_user_schema.username,
             status=status,
             sponsor_depth=data.get("sponsor_depth"),
-            matrix_length=matrix_length,
+            matrix_length=data.get("matrix_length"),
         )
 
         await send_message_or_pass(
