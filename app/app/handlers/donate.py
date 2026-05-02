@@ -190,13 +190,24 @@ async def donations_menu_handler(
         )
         donates_sum = await donate_confirm_service.get_donates_sum()
         system_bill = await donate_confirm_service.get_system_bill()
+        bills_for_activation_sum = (
+            await telegram_user_service.get_bills_for_activation_sum()
+        ) - current_user.bill_for_activation
+        bills_for_withdraw_sum = (
+            await telegram_user_service.get_bills_for_withdraw_sum()
+        ) - current_user.bill_for_withdraw
+
         message_text = (
             f"Регистраций в KOD💵DENEG: <b>{len(users)}</b>\n"
             f"\n{statuses_statistic_message}\n"
             "Всего подарили: "
             f"<b>${donates_sum}</b>\n"
             "Системный баланс: "
-            f"<b>${system_bill}</b>\n\n"
+            f"<b>${system_bill}</b>\n"
+            "Общий баланс для активации: "
+            f"<b>${bills_for_activation_sum}</b>\n"
+            "Общий баланс для вывода: "
+            f"<b>${bills_for_withdraw_sum}</b>\n\n"
         ) + message_text
         buttons = default_buttons
         admin_buttons = {

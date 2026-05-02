@@ -6,6 +6,7 @@ from app.models.telegram_user import TelegramUser
 from app.schemas.telegram_user import TelegramUserEntity
 from app.models.matrix import Matrix
 from app.models.telegram_user import MatrixBuildType
+from app.schemas.telegram_user import BillType
 
 
 class TelegramUserService:
@@ -108,3 +109,21 @@ class TelegramUserService:
 
     async def get_ids(self, *args, **kwargs) -> List[uuid.UUID]:
         return self._repository_telegram_user.get_ids(*args, **kwargs)
+
+    async def get_bills_for_activation_sum(self, *args, **kwargs):
+        return sum(
+            self._repository_telegram_user.get_bills(
+                *args,
+                bill_type=BillType.ACTIVATION,
+                **kwargs,
+            )
+        )
+
+    async def get_bills_for_withdraw_sum(self, *args, **kwargs):
+        return sum(
+            self._repository_telegram_user.get_bills(
+                *args,
+                bill_type=BillType.WITHDRAW,
+                **kwargs,
+            )
+        )

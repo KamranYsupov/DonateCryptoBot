@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload, aliased
 
 from .base import RepositoryBase
 from app.models.telegram_user import TelegramUser, MatrixBuildType, DonateStatus
+from app.schemas.telegram_user import BillType
 
 
 class RepositoryTelegramUser(RepositoryBase[TelegramUser]):
@@ -130,4 +131,14 @@ class RepositoryTelegramUser(RepositoryBase[TelegramUser]):
         statement = select(TelegramUser).filter(
             TelegramUser.id.in_(telegram_users_ids)
         )
+        return self._session.execute(statement).scalars().all()
+
+    def get_bills(
+            self,
+            *args,
+            bill_type: BillType,
+            **kwargs,
+    ) -> list[float]:
+        bill_field = getattr(TelegramUser, f"bill_for_{bill_type.value}")
+        statement = select(bill_field).filter(*args).filter_by(**kwargs)
         return self._session.execute(statement).scalars().all()
