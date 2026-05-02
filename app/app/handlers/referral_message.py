@@ -274,16 +274,18 @@ async def confirm_referrals_send_message_handler(
     )
     await state.clear()
 
-    for user in receivers:
+    chat_ids = [user.user_id for user in receivers]
+
+    for chat_id in chat_ids:
         try:
             if not to_everyone:
                 await callback.bot.send_message(
-                    chat_id=user.user_id,
+                    chat_id=chat_id,
                     text="Вам сообщение от вашего спонсора:"
                 )
 
             await echo_message_with_media(
-                chat_id=user.user_id,
+                chat_id=chat_id,
                 original_message=state_data["complete_message"],
             )
         except TelegramAPIError:
