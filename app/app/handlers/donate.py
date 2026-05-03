@@ -206,7 +206,7 @@ async def donations_menu_handler(
             await telegram_user_service.get_bills_for_withdraw_sum(
                 TelegramUser.bill_for_withdraw >= 10,
             )
-        ) #- current_user.bill_for_withdraw
+        ) - current_user.bill_for_withdraw
 
         message_text = (
             f"Регистраций в KOD💵DENEG: <b>{len(users)}</b>\n"
