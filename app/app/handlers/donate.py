@@ -39,6 +39,7 @@ from app.models.donate import DonateTransactionType
 from app.models.donate import DonateTransactionType
 from app.loader import bot
 from app.utils.bot import send_transaction_messages
+from app.models.telegram_user import TelegramUser
 
 donate_router = Router()
 
@@ -196,6 +197,11 @@ async def donations_menu_handler(
         bills_for_withdraw_sum = (
             await telegram_user_service.get_bills_for_withdraw_sum()
         ) - current_user.bill_for_withdraw
+        count_users_with_more_10_dollars_for_withdraw = (
+            await telegram_user_service.get_count(
+                TelegramUser.bill_for_withdraw >= 10,
+            )
+        )
 
         message_text = (
             f"Регистраций в KOD💵DENEG: <b>{len(users)}</b>\n"
@@ -207,7 +213,9 @@ async def donations_menu_handler(
             "Общий баланс для активации: "
             f"<b>${bills_for_activation_sum}</b>\n"
             "Общий баланс для вывода: "
-            f"<b>${bills_for_withdraw_sum}</b>\n\n"
+            f"<b>${bills_for_withdraw_sum}</b>\n"
+            "Число пользователей с балансов для вывода более $10: "
+            f"<b>{count_users_with_more_10_dollars_for_withdraw}</b>\n\n"
         ) + message_text
         buttons = default_buttons
         admin_buttons = {
