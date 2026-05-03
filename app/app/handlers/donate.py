@@ -197,11 +197,16 @@ async def donations_menu_handler(
         bills_for_withdraw_sum = (
             await telegram_user_service.get_bills_for_withdraw_sum()
         ) - current_user.bill_for_withdraw
-        count_users_with_more_10_dollars_for_withdraw = (
+        count_users_with_bill_for_withdraw_gte_10 = (
             await telegram_user_service.get_count(
                 TelegramUser.bill_for_withdraw >= 10,
             )
         )
+        bills_for_withdraw_gte_10_sum = (
+            await telegram_user_service.get_bills_for_withdraw_sum(
+                TelegramUser.bill_for_withdraw >= 10,
+            )
+        ) #- current_user.bill_for_withdraw
 
         message_text = (
             f"Регистраций в KOD💵DENEG: <b>{len(users)}</b>\n"
@@ -214,8 +219,10 @@ async def donations_menu_handler(
             f"<b>${bills_for_activation_sum}</b>\n"
             "Общий баланс для вывода: "
             f"<b>${bills_for_withdraw_sum}</b>\n"
-            "Число пользователей с балансов для вывода более $10: "
-            f"<b>{count_users_with_more_10_dollars_for_withdraw}</b>\n\n"
+            "Общий баланс для вывода +10$: "
+            f"<b>${bills_for_withdraw_gte_10_sum}</b>\n"
+            "Число пользователей с балансом для вывода +10: "
+            f"<b>{count_users_with_bill_for_withdraw_gte_10}</b>\n\n"
         ) + message_text
         buttons = default_buttons
         admin_buttons = {
