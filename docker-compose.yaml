@@ -44,6 +44,16 @@ services:
     env_file:
       - .env
 
+  api:
+    <<: *python
+    container_name: ${PROJECT_SLUG}_api
+    build:
+      context: .
+      dockerfile: api.dockerfile
+    ports:
+      - "8000:8000"
+    restart: on-failure
+
   telegram-server:
     image: aiogram/telegram-bot-api:latest
     container_name: ${PROJECT_SLUG}_telegram-server

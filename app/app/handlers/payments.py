@@ -24,6 +24,7 @@ from app.keyboards.donate import get_donations_keyboard
 from app.db.commit_decorator import commit_and_close_session
 from app.services.crypto_bot_api_service import CryptoBotAPIService
 from app.keyboards.reply import reply_cancel_keyboard, get_reply_keyboard
+from app.loader import bot
 
 payment_router = Router()
 
@@ -110,68 +111,13 @@ async def buy_tokens_handler(
         InlineKeyboardButton(
             text="Оплатить 💸",
             url=result["mini_app_invoice_url"]
-        ),
-        InlineKeyboardButton(
-            text="Проверить оплату",
-            callback_data=f"check_invoice_{invoice_id}"
-        ),
+        )
     )
     reply_markup = payment_app_keyboard.adjust(1, 1).as_markup()
 
     await callback.message.edit_text(
-        "После оплаты проверьте ее по кнопке <b>\"Проверить оплату\"</b>.",
+        "Оплатите счет в приложении ⤵️",
         reply_markup=reply_markup
 
     )
-
-
-@payment_router.callback_query(F.data.startswith("check_invoice_"))
-@inject
-@commit_and_close_session
-async def check_invoice_handler(
-        callback: CallbackQuery,
-        crypto_bot_api_service: CryptoBotAPIService = Provide[
-            Container.crypto_bot_api_service
-        ],
-        telegram_user_service: TelegramUserService = Provide[
-            Container.telegram_user_service
-        ],
-) -> None:
-    invoice_id = int(callback.data.split("_")[-1])
-    current_invoice = None
-
-    response = await crypto_bot_api_service.get_invoices()
-    for invoice in response["result"]["items"]:
-        if invoice["invoice_id"] == invoice_id:
-            current_invoice = invoice
-            break
-
-    unknown_error_message = "Произошла ошибка. Попробуйте еще раз."
-    if not current_invoice:
-        await callback.message.edit_text(unknown_error_message)
-        return
-
-    if current_invoice["status"] == "active":
-        await callback.message.answer(
-            "Оплата не произведена ❌"
-        )
-        return
-    elif current_invoice["status"] == "paid":
-        payload = json.loads(current_invoice["payload"])
-        telegram_user = await telegram_user_service.get_telegram_user(user_id=payload["telegram_id"])
-        tokens_count = payload["tokens_count"]
-        telegram_user.bill_for_activation += tokens_count
-        await callback.message.delete()
-        await callback.message.answer("Оплата прошла успешно ✅")
-        await callback.message.answer(
-            f"На баланс зачислено {tokens_count} USDT.",
-            reply_markup=get_donate_keyboard(buttons={"⚡️ Активация": "donations"})
-        )
-        return
-    else:
-        await callback.message.edit_text(unknown_error_message)
-        return
-
-
-
 

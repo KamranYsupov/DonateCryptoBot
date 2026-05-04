@@ -31,6 +31,8 @@ from app.services.matrix_service import AddBotToMatrixTaskModelService
 class Container(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
         modules=[
+            "app.api.endpoints.crypto_bot",
+
             "app.handlers.donate",
             "app.handlers.start",
             "app.handlers.info",
@@ -42,6 +44,7 @@ class Container(containers.DeclarativeContainer):
             "app.handlers.worker",
             "app.handlers.bill_type",
             "app.handlers.aggregators",
+
             "app.middlewares.ban_user",
             "app.middlewares.subscriptions",
             "app.tasks.donate",

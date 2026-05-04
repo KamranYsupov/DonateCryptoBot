@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     log_level: LogLevel = Field(title="Уровень логирования", default=LogLevel.INFO)
     # endregion
 
+    # region API
+    api_prefix: str = Field(title="Префикс API", default="/api")
+    # endregion
+
     debug: bool = Field(title="Режим отладки", default=True)
     secret_key: str = Field(
         title="Секретный ключ", default_factory=lambda: secrets.token_hex(16)
