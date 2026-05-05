@@ -2,6 +2,7 @@ from uuid import UUID
 from typing import Dict, Any
 
 import loguru
+from aiogram.exceptions import TelegramAPIError
 from dependency_injector import providers
 from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, Depends, Request
@@ -9,6 +10,7 @@ from starlette.responses import Response
 from starlette import status
 
 from app.core.container import Container
+from app.handlers import send_donations_menu
 from app.loader import bot
 from app.api.schemas.crypto_bot import UpdateWebhookSchema, CryptoInvoiceSchema
 from app.services.telegram_user_service import TelegramUserService
@@ -41,14 +43,24 @@ async def updates_webhook(
         telegram_user = await telegram_user_service.get_telegram_user(user_id=telegram_id)
         telegram_user.bill_for_activation += tokens_count
 
+
+        for message_id in invoice.payload.messages_to_delete_ids:
+            try:
+                await bot.delete_message(
+                chat_id=telegram_id,
+                message_id=message_id,
+            )
+            except TelegramAPIError:
+                pass
+
         await bot.send_message(
             chat_id=telegram_id,
-            text="Оплата прошла успешно ✅",
+            text="Оплата прошла успешно ✅\n\n"
+                 f"На баланс зачислено {tokens_count} USDT.",
         )
-        await bot.send_message(
-            chat_id=telegram_id,
-            text=f"На баланс зачислено {tokens_count} USDT.",
-            reply_markup=get_donate_keyboard(buttons={"⚡️ Активация": "donations"})
+        await send_donations_menu(
+            from_user_id=telegram_id,
+            telegram_method=bot.send_message
         )
         return Response(status_code=status.HTTP_200_OK)
 

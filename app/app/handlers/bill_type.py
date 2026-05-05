@@ -29,9 +29,9 @@ async def bill_type_handler(
             user_id=aiogram_type.from_user.id
         )
         buttons = {
-            f"Для вывода ({current_user.bill_for_withdraw} USDT)":
+            f"Для вывода {current_user.bill_for_withdraw} USDT":
                 f"{callback_data}_{BillType.WITHDRAW.value}",
-            f"Для активации ({current_user.bill_for_activation} USDT)":
+            f"Для активации {current_user.bill_for_activation} USDT":
                 f"{callback_data}_{BillType.ACTIVATION.value}",
         }
 

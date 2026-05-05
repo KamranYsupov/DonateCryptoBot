@@ -96,8 +96,9 @@ def get_matrices_length_statistic_message(
         matrices: list[Matrix],
 ) -> str:
     message = ""
+    sorted_matrices = get_sorted_matrices(matrices, status_list)
 
-    for matrix in matrices:
+    for matrix in sorted_matrices:
         if matrix.status == DonateStatus.NOT_ACTIVE:
             continue
 

@@ -61,7 +61,7 @@ async def process_tokens_count(
         return
 
     await state.clear()
-    await message.answer(
+    message = await message.answer(
         f"Будет создан счет на сумму <b>{tokens_count} USDT</b>",
         reply_markup=get_reply_keyboard(None)
     )
@@ -69,7 +69,7 @@ async def process_tokens_count(
         "<b>Продолжить ?</b>",
         reply_markup=get_donate_keyboard(
             buttons={
-                "Да": f"buy_tokens_{tokens_count}",
+                "Да": f"buy_tokens_{message.message_id}_{tokens_count}",
                 "Нет": f"donations",
             },
             sizes=(1, 1),
@@ -85,11 +85,12 @@ async def buy_tokens_handler(
             Container.crypto_bot_api_service
         ],
 ) -> None:
-    tokens_count = int(callback.data.split("_")[-1])
+    previous_message_id, tokens_count = map(int, callback.data.split("_")[-2:])
 
     payload = {
         "telegram_id": callback.from_user.id,
         "tokens_count": tokens_count,
+        "messages_to_delete_ids": [previous_message_id, callback.message.message_id],
     }
     response = await crypto_bot_api_service.create_invoice(
         amount=tokens_count,
@@ -104,7 +105,6 @@ async def buy_tokens_handler(
         )
         return
     result = response["result"]
-    invoice_id = result["invoice_id"]
 
     payment_app_keyboard = InlineKeyboardBuilder()
     payment_app_keyboard.add(

@@ -14,6 +14,15 @@ from ..models.telegram_user import MatrixBuildType
 class RepositoryMatrix(RepositoryBase[Matrix]):
     """Репозиторий матрицы"""
 
+
+    def get_list(self, *args, order_by_create_at: bool = False, **kwargs):
+        statement = select(Matrix).filter(*args).filter_by(**kwargs)
+
+        if order_by_create_at:
+            statement = statement.order_by(Matrix.created_at)
+
+        return self._session.execute(statement).scalars().all()
+
     def get_parent_matrix(
             self, matrix_id: Matrix.id, status: DonateStatus, return_all: bool = False
     ) -> Matrix | list[Matrix]:

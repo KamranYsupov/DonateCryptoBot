@@ -154,11 +154,11 @@ async def subscription_checker(
         "✅ Готово! Выбери действие", reply_markup=get_reply_keyboard(current_user)
     )
 
-@donate_router.callback_query(F.data.startswith("donations"))
-@donate_router.message(F.text == "⚡️ Активация")
+
 @inject
-async def donations_menu_handler(
-        aiogram_type: Message | CallbackQuery,
+async def send_donations_menu(
+        from_user_id: int,
+        telegram_method,
         telegram_user_service: TelegramUserService = Provide[
             Container.telegram_user_service
         ],
@@ -167,11 +167,12 @@ async def donations_menu_handler(
             Container.donate_confirm_service
         ],
 ) -> None:
-    telegram_method = aiogram_type.answer if isinstance(aiogram_type, Message) \
-        else aiogram_type.message.edit_text
+    telegram_method_kwargs = {}
+    if telegram_method == bot.send_message:
+        telegram_method_kwargs["chat_id"] = from_user_id
 
     current_user = await telegram_user_service.get_telegram_user(
-        user_id=aiogram_type.from_user.id
+        user_id=from_user_id
     )
     default_buttons = {}
     message_text = (
@@ -252,6 +253,7 @@ async def donations_menu_handler(
         buttons.update(admin_buttons)
 
         await telegram_method(
+            **telegram_method_kwargs,
             text=message_text,
             reply_markup=get_donate_keyboard(
                 buttons=default_buttons,
@@ -259,7 +261,10 @@ async def donations_menu_handler(
         )
         return
 
-    current_user_matrices = await matrix_service.get_list(owner_id=current_user.id)
+    current_user_matrices = await matrix_service.get_list(
+        order_by_create_at=True,
+        owner_id=current_user.id,
+    )
     current_user_main_matrices = get_main_matrices(current_user_matrices)
     matrices_length_statistic_message = (
         "\n" + get_matrices_length_statistic_message(current_user_main_matrices)
@@ -286,10 +291,25 @@ async def donations_menu_handler(
     })
 
     await telegram_method(
+        **telegram_method_kwargs,
         text=message_text,
         reply_markup=get_donate_keyboard(
             buttons=buttons,
         ),
+    )
+
+
+@donate_router.callback_query(F.data.startswith("donations"))
+@donate_router.message(F.text == "⚡️ Активация")
+async def donations_menu_handler(
+        aiogram_type: Message | CallbackQuery,
+) -> None:
+    telegram_method = bot.send_message if isinstance(aiogram_type, Message) \
+        else aiogram_type.message.edit_text
+
+    await send_donations_menu(
+        from_user_id=aiogram_type.from_user.id,
+        telegram_method=telegram_method,
     )
 
 
@@ -346,7 +366,7 @@ async def confirm_donate(
         return
 
     await callback.message.edit_text(
-        text=f"Для активации площадки с вашего баланса будет списано ${donate_sum}\n\n"
+        text=f"Для активации площадки с вашего баланса будет списано {int(donate_sum)} USDT.\n\n"
         "Продолжить?",
         parse_mode="HTML",
         reply_markup=get_donate_keyboard(
@@ -461,6 +481,10 @@ async def donate_handler(
     await callback.message.answer("🎉")
     await callback.message.answer(
         "<b>Площадка успешно активирована, бот начал свою работу ✅</b>"
+    )
+    await send_donations_menu(
+        callback.from_user.id,
+        bot.send_message,
     )
 
     for data in donations_data:

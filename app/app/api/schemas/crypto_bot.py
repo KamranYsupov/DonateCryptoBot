@@ -13,6 +13,7 @@ class UpdateWebhookSchema(BaseModel):
 class InvoicePayloadSchema(BaseModel):
     telegram_id: int
     tokens_count: int
+    messages_to_delete_ids: list[int]
 
 class CryptoInvoiceSchema(BaseModel):
     invoice_id: int
