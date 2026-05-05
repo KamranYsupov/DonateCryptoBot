@@ -436,6 +436,9 @@ async def donate_handler(
         donations_data,
         status,
     )
+    if not matrix:
+        await callback.message.edit_text("Непредвиденная ошибка!")
+        return
 
     donate = await donate_confirm_service.create_donate(
         telegram_user_id=current_user.id,

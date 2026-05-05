@@ -393,10 +393,14 @@ class DonateService:
             status: DonateStatus,
             donations_data: list,
             level_length: int,
+            max_iterations: int = 10000,
     ):
-
         current_user = user_to_add
-        while True:
+        iter_count = 0
+
+        while iter_count <= max_iterations:
+            iter_count += 1
+
             next_sponsor = self._repository_telegram_user.get(
                 user_id=user_to_add.sponsor_user_id
             )
@@ -444,3 +448,8 @@ class DonateService:
                     level_length,
                 )
                 return matrix
+            else:
+                user_to_add = next_sponsor
+                continue
+
+        return None
