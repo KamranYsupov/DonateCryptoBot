@@ -34,12 +34,18 @@ from app.utils.sort import get_reversed_dict
 from app.utils.sponsor import check_is_second_status_higher
 from app.utils.texts import get_donate_confirm_message
 from app.utils.excel import export_users_to_excel
-from app.utils.texts import get_user_statuses_statistic_message
+from app.utils.texts import (
+    get_user_statuses_statistic_message,
+    get_matrices_statuses_statistic_message,
+    get_matrices_length_statistic_message,
+)
 from app.models.donate import DonateTransactionType
 from app.models.donate import DonateTransactionType
 from app.loader import bot
 from app.utils.bot import send_transaction_messages
 from app.models.telegram_user import TelegramUser
+from app.models.matrix import Matrix
+from app.utils.matrix import get_main_matrices
 
 donate_router = Router()
 
@@ -145,7 +151,7 @@ async def subscription_checker(
     )
     await callback.message.delete()
     await callback.message.answer(
-        "✅ Готово! Выбери сервис", reply_markup=get_reply_keyboard(current_user)
+        "✅ Готово! Выбери действие", reply_markup=get_reply_keyboard(current_user)
     )
 
 @donate_router.callback_query(F.data.startswith("donations"))
@@ -156,6 +162,7 @@ async def donations_menu_handler(
         telegram_user_service: TelegramUserService = Provide[
             Container.telegram_user_service
         ],
+        matrix_service: MatrixService = Provide[Container.matrix_service],
         donate_confirm_service: DonateConfirmService = Provide[
             Container.donate_confirm_service
         ],
@@ -185,19 +192,28 @@ async def donations_menu_handler(
         })
 
     if current_user.is_admin:
-        users = await telegram_user_service.get_list(is_bot=False)
-        statuses_statistic_message = get_user_statuses_statistic_message(
-            users,
+        users_count = await telegram_user_service.get_count(is_bot=False)
+        users_count_with_not_active_status = await telegram_user_service.get_count(
+            status=DonateStatus.NOT_ACTIVE,
+            is_bot=False,
         )
+        owners_ids = await telegram_user_service.get_ids(is_bot=False)
+        matrices = await matrix_service.get_list(Matrix.owner_id.in_(owners_ids))
+        matrix_statuses_statistic_message = get_matrices_statuses_statistic_message(
+            matrices,
+        )
+
         donates_sum = await donate_confirm_service.get_donates_sum()
         system_bill = await donate_confirm_service.get_system_bill()
+
         bills_for_activation_sum = (
             await telegram_user_service.get_bills_for_activation_sum()
         ) - current_user.bill_for_activation
         bills_for_withdraw_sum = (
             await telegram_user_service.get_bills_for_withdraw_sum()
         ) - current_user.bill_for_withdraw
-        count_users_with_bill_for_withdraw_gte_10 = (
+
+        users_count_with_bill_for_withdraw_gte_10 = (
             await telegram_user_service.get_count(
                 TelegramUser.bill_for_withdraw >= 10,
             )
@@ -209,8 +225,9 @@ async def donations_menu_handler(
         ) - current_user.bill_for_withdraw
 
         message_text = (
-            f"Регистраций в KOD💵DENEG: <b>{len(users)}</b>\n"
-            f"\n{statuses_statistic_message}\n"
+            f"Регистраций в KOD💵DENEG: <b>{users_count}</b>\n"
+            f"\n{matrix_statuses_statistic_message}"
+            f"🆓: {users_count_with_not_active_status}\n\n"
             "Всего подарили: "
             f"<b>${donates_sum}</b>\n"
             "Системный баланс: "
@@ -222,7 +239,7 @@ async def donations_menu_handler(
             "Общий баланс для вывода +10$: "
             f"<b>${bills_for_withdraw_gte_10_sum}</b>\n"
             "Число пользователей с балансом для вывода +10: "
-            f"<b>{count_users_with_bill_for_withdraw_gte_10}</b>\n\n"
+            f"<b>{users_count_with_bill_for_withdraw_gte_10}</b>\n\n"
         ) + message_text
         buttons = default_buttons
         admin_buttons = {
@@ -242,12 +259,19 @@ async def donations_menu_handler(
         )
         return
 
+    current_user_matrices = await matrix_service.get_list(owner_id=current_user.id)
+    current_user_main_matrices = get_main_matrices(current_user_matrices)
+    matrices_length_statistic_message = (
+        "\n" + get_matrices_length_statistic_message(current_user_main_matrices)
+    ) if current_user_main_matrices else "не открыты"
+
     buttons = {}
     sponsor = await telegram_user_service.get_telegram_user(
         user_id=current_user.sponsor_user_id
     )
     buttons.update(get_donations_keyboard())
     message_text = (
+        f"Активные площадки: {matrices_length_statistic_message}\n"
         f"Мой куратор: "
         + ("@" + sponsor.username if sponsor.username else sponsor.first_name)
         + "\n"

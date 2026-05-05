@@ -71,6 +71,44 @@ def get_user_statuses_statistic_message(
     return message
 
 
+def get_matrices_statuses_statistic_message(
+        matrices: list[Matrix],
+) -> str:
+    message = ""
+    status_emoji_data = {
+        status_list[i]: status_emoji_list[i]
+        for i in range(len(status_list))
+    }
+    statuses_data = {status: 0 for status in status_emoji_list}
+
+    for matrix in matrices:
+        if matrix.status == DonateStatus.NOT_ACTIVE:
+            continue
+
+        statuses_data[status_emoji_data[matrix.status]] += 1
+
+    for status, count in list(statuses_data.items())[::-1]:
+        message += f"{status}: {count}\n"
+
+    return message
+
+def get_matrices_length_statistic_message(
+        matrices: list[Matrix],
+) -> str:
+    message = ""
+
+    for matrix in matrices:
+        if matrix.status == DonateStatus.NOT_ACTIVE:
+            continue
+
+        emoji = statuses_colors_data.get(matrix.status)
+        message += (
+            f"<b>{emoji} {matrix.status.value.upper()}</b>: "
+            f"{len(matrix.telegram_users)}/{settings.matrix_max_length}\n"
+        )
+
+    return message
+
 def get_user_info_message(user: TelegramUser) -> str:
     message = (
         f"ID: {html.bold(user.id)}\n\n"

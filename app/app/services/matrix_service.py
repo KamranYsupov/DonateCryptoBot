@@ -31,8 +31,8 @@ class MatrixService:
         self._repository_matrix = repository_matrix
         self._repository_telegram_user = repository_telegram_user
 
-    async def get_list(self) -> list[Matrix]:
-        return self._repository_matrix.list()
+    async def get_list(self, *args, **kwargs) -> list[Matrix]:
+        return self._repository_matrix.list(*args, **kwargs)
 
     async def get_matrix(self, **kwargs) -> Matrix:
         return self._repository_matrix.get(**kwargs)

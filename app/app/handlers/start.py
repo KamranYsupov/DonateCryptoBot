@@ -42,14 +42,8 @@ async def command_start(
 ) -> None:
     if await telegram_user_service.exist(user_id=message.from_user.id):
         await message.answer(
-            f"Вы уже зарегистрированы в системе.\n" f"Продолжить?",
-            reply_markup=get_donate_keyboard(
-                buttons={
-                    "Да": f"menu_1",
-                    "Нет": "no",
-                },
-                sizes=(2, 1),
-            ),
+            "Выбери действие:",
+            reply_markup=get_reply_keyboard(None)
         )
         return
 

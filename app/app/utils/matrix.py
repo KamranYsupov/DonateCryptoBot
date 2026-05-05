@@ -68,12 +68,27 @@ def get_active_matrices(
         matrices: List[Matrix],
 ) -> List[Matrix]:
 
-    archived_matrices = [
+    active_matrices = [
         matrix for matrix in matrices
         if len(matrix.telegram_users) < settings.matrix_max_length
     ]
 
-    return archived_matrices
+    return active_matrices
+
+def get_main_matrices(
+     matrices: List[Matrix],
+) -> List[Matrix]:
+    main_matrices = []
+    added_statuses = set()
+
+    for matrix in matrices:
+        if len(matrix.telegram_users) < settings.matrix_max_length \
+            and matrix.status not in added_statuses:
+
+            added_statuses.add(matrix.status)
+            main_matrices.append(matrix)
+
+    return main_matrices
 
 
 def find_free_place_in_matrix(
