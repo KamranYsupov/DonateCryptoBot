@@ -6,7 +6,11 @@ from app.api.endpoints.routers import api_router
 from app.core.container import Container
 
 def create_app() -> FastAPI:
-    fastapi_app = FastAPI()
+    fastapi_app = FastAPI(
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None
+    )
     fastapi_app.container = Container()
     fastapi_app.include_router(api_router, prefix=settings.api_prefix)
 
