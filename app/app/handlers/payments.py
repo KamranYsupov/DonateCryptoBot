@@ -85,12 +85,19 @@ async def buy_tokens_handler(
             Container.crypto_bot_api_service
         ],
 ) -> None:
-    previous_message_id, tokens_count = map(int, callback.data.split("_")[-2:])
+    messages_to_delete_ids = [callback.message.message_id]
+    try:
+        previous_message_id = int(callback.data.split("_")[-2])
+        messages_to_delete_ids.append(previous_message_id)
+    except ValueError:
+        pass
+
+    tokens_count = int(callback.data.split("_")[-1])
 
     payload = {
         "telegram_id": callback.from_user.id,
         "tokens_count": tokens_count,
-        "messages_to_delete_ids": [previous_message_id, callback.message.message_id],
+        "messages_to_delete_ids": messages_to_delete_ids,
     }
     response = await crypto_bot_api_service.create_invoice(
         amount=tokens_count,

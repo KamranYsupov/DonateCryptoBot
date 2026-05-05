@@ -280,7 +280,6 @@ async def send_donations_menu(
         f"Мой куратор: "
         + ("@" + sponsor.username if sponsor.username else sponsor.first_name)
         + "\n"
-        f"Мой статус: <b>{current_user.status.value}</b>\n"
     ) + message_text
 
     buttons.update(default_buttons)
