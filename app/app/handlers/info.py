@@ -259,11 +259,13 @@ async def referral_handler(
 
     if current_user.is_admin:
         buttons.update({
-            "Отправить рассылку рефералам 📨": f"referral_message_0_{page_number}",
-            "Отправить рассылку всем пользователям 👥📨": f"referral_message_1_{page_number}",
+            "Отправить рассылку рефералам 📨": f"ref_msg_sponsor_{page_number}",
+            "Отправить рассылку всем пользователям 👥📨": f"ref_msg_everyone_{page_number}",
+            "Отправить рассылку всем неактивным пользователям 🆓📨": f"ref_msg_free_{page_number}",
+            "Отправить рассылку всем платным пользователям 💸📨": f"ref_msg_paid_{page_number}",
         })
     else:
-        buttons.update({"Отправить рассылку 📨": f"referral_message_0_{page_number}"})
+        buttons.update({"Отправить рассылку 📨": f"ref_msg_sponsor_{page_number}"})
 
     buttons.update(default_buttons)
 

@@ -22,6 +22,7 @@ from app.db.commit_decorator import commit_and_close_session
 from app.utils.bot import echo_message_with_media
 from app.keyboards.reply import get_reply_keyboard
 from app.utils.bot import send_assembled_message
+from app.models.telegram_user import TelegramUser, DonateStatus
 
 
 class MessageForm(StatesGroup):
@@ -31,7 +32,7 @@ class MessageForm(StatesGroup):
     button_link = State()
     complete_message = State()
     confirm_referrals_send = State()
-    to_everyone = State()
+    to = State()
 
 referral_router = Router()
 
@@ -51,14 +52,14 @@ def get_confirm_referrals_send_keyboard():
     )
 
 @referral_router.callback_query(
-    F.data.startswith("referral_message_")
+    F.data.startswith("ref_msg_")
 )
 async def referral_message_callback_handler(
         callback: CallbackQuery,
         state: FSMContext
 ) -> None:
-    to_everyone, page_number = map(int, callback.data.split("_")[-2:])
-    await state.update_data(to_everyone=to_everyone)
+    to, page_number = callback.data.split("_")[-2:]
+    await state.update_data(to=to)
     await callback.message.edit_reply_markup(
         reply_markup=get_donate_keyboard(
             buttons={
@@ -259,14 +260,32 @@ async def confirm_referrals_send_message_handler(
             Container.telegram_user_service
         ],
 ):
+    current_user = await telegram_user_service.get_telegram_user(user_id=callback.from_user.id)
+
     state_data = await state.get_data()
-    to_everyone = state_data.get("to_everyone")
-    if to_everyone:
-        receivers = await telegram_user_service.get_list(is_admin=False)
-    else:
+    to = state_data.get("to")
+
+    if to != "sponsor" and not current_user.is_admin:
+        return
+
+    if to == "sponsor":
         receivers = await telegram_user_service.get_invited_users(
             sponsor_user_id=callback.from_user.id
         )
+    elif to == "everyone":
+        receivers = await telegram_user_service.get_list(is_admin=False)
+    elif to == "free":
+        receivers = await telegram_user_service.get_list(
+            is_admin=False,
+            status=DonateStatus.NOT_ACTIVE,
+        )
+    elif to == "paid":
+        receivers = await telegram_user_service.get_list(
+            TelegramUser.status != DonateStatus.NOT_ACTIVE,
+            is_admin=False,
+        )
+    else:
+        return
 
     await callback.message.edit_text(
         "Рассылка отправлена ✅",
@@ -278,7 +297,7 @@ async def confirm_referrals_send_message_handler(
 
     for chat_id in chat_ids:
         try:
-            if not to_everyone:
+            if to == "sponsor":
                 await callback.bot.send_message(
                     chat_id=chat_id,
                     text="Вам сообщение от вашего спонсора:"
