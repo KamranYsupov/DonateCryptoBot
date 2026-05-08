@@ -1,3 +1,4 @@
+import enum
 import uuid
 
 from sqlalchemy import (
@@ -17,6 +18,12 @@ from app.db.base import Base
 from app.models.mixins import TimestampedMixin, UUIDMixin
 
 
+class WalletAddressType(enum.Enum):
+    TON = "TON"
+    BEP20 = "BEP20"
+    SOLANA = "SOLANA"
+
+
 class WithdrawalRequest(UUIDMixin, TimestampedMixin, Base):
     """Модель заявки вывода токенов"""
 
@@ -28,6 +35,12 @@ class WithdrawalRequest(UUIDMixin, TimestampedMixin, Base):
         index=True,
     )
     wallet_address = Column(String)
+    wallet_address_type = Column(
+        Enum(WalletAddressType),
+        default=WalletAddressType.TON,
+        server_default=WalletAddressType.TON.value,
+        nullable=False,
+    )
     tokens_count = Column(Integer)
     is_paid = Column(Boolean, default=False, index=True)
 
