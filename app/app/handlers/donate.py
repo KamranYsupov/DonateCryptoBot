@@ -46,6 +46,7 @@ from app.utils.bot import send_transaction_messages
 from app.models.telegram_user import TelegramUser
 from app.models.matrix import Matrix
 from app.utils.matrix import get_main_matrices
+from app.keyboards.donate import get_start_inline_keyboard
 
 donate_router = Router()
 
@@ -149,9 +150,25 @@ async def subscription_checker(
     current_user = await telegram_user_service.get_telegram_user(
         user_id=callback.from_user.id
     )
+    sponsor = await telegram_user_service.get_telegram_user(
+        user_id=current_user.sponsor_user_id
+    )
+
     await callback.message.delete()
     await callback.message.answer(
-        "✅ Готово! Выбери действие", reply_markup=get_reply_keyboard(current_user)
+        f"👋 Приветствую, {current_user.first_name}!\n\n",
+        reply_markup=get_reply_keyboard(current_user)
+    )
+    await callback.message.answer(
+        f"Я твой куратор — @{sponsor.username}\n\n"
+        "📌 С чего начать:\n\n"
+        "✅ Смотреть фильм\n"
+        "✅ Изучить презентацию\n"
+        "✅ Разобраться с ботом\n\n"
+        "По всем вопросам — обращайся ко мне.\n\n"
+        "Твои первые шаги — ниже ⤵️"
+        ,
+        reply_markup=get_start_inline_keyboard(),
     )
 
 

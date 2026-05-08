@@ -26,7 +26,7 @@ from app.db.commit_decorator import commit_and_close_session
 from app.keyboards.reply import get_reply_keyboard
 from app.utils.matrix import get_matrices_length
 from app.services.donate_confirm_service import DonateConfirmService
-
+from app.keyboards.donate import get_start_inline_keyboard
 
 start_router = Router()
 
@@ -40,15 +40,28 @@ async def command_start(
             Container.telegram_user_service
         ],
 ) -> None:
-    if await telegram_user_service.exist(user_id=message.from_user.id):
+    current_user = await telegram_user_service.get_telegram_user(user_id=message.from_user.id)
+
+    sponsor_user_id = current_user.sponsor_user_id if current_user else command.args
+    sponsor = await telegram_user_service.get_telegram_user(user_id=sponsor_user_id)
+    if current_user:
         await message.answer(
-            "Выбери действие:",
+            f"👋 Приветствую, {current_user.first_name}!\n\n",
             reply_markup=get_reply_keyboard(None)
         )
+        if not current_user.is_admin:
+            await message.answer(
+                f"Я твой куратор — @{sponsor.username}\n\n"
+                "📌 С чего начать:\n\n"
+                "✅ Смотреть фильм\n"
+                "✅ Изучить презентацию\n"
+                "✅ Разобраться с ботом\n\n"
+                "По всем вопросам — обращайся ко мне.\n\n"
+                "Твои первые шаги — ниже ⤵️"
+                ,
+                reply_markup=get_start_inline_keyboard(),
+            )
         return
-
-    sponsor_user_id = command.args
-    sponsor = await telegram_user_service.get_telegram_user(user_id=sponsor_user_id)
 
     if not sponsor:
         await message.answer("Неправильная ссылка")
