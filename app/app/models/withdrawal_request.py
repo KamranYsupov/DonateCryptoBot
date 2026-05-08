@@ -18,7 +18,7 @@ from app.db.base import Base
 from app.models.mixins import TimestampedMixin, UUIDMixin
 
 
-class WalletAddressType(enum.Enum):
+class CryptoNetworkType(enum.Enum):
     TON = "TON"
     BEP20 = "BEP20"
     SOLANA = "SOLANA"
@@ -35,10 +35,10 @@ class WithdrawalRequest(UUIDMixin, TimestampedMixin, Base):
         index=True,
     )
     wallet_address = Column(String)
-    wallet_address_type = Column(
-        Enum(WalletAddressType),
-        default=WalletAddressType.TON,
-        server_default=WalletAddressType.TON.value,
+    network = Column(
+        Enum(CryptoNetworkType),
+        default=CryptoNetworkType.TON,
+        server_default=CryptoNetworkType.TON.value,
         nullable=False,
     )
     tokens_count = Column(Integer)
