@@ -29,11 +29,13 @@ from app.schemas.withdrawal_request import WithdrawalRequestEntity
 from app.models.withdrawal_request import WithdrawalRequest
 from app.utils.pagination import Paginator
 from app.utils.texts import get_withdrawal_request_info_message
+from app.validators.crypto_wallets import ValidateWalletAddress
+from app.models.withdrawal_request import CryptoNetworkType
 
 withdrawal_requests_router = Router()
 
-
 class WithdrawalRequestState(StatesGroup):
+    network = State()
     wallet_address = State()
     tokens_count = State()
     confirm_sending = State()
@@ -44,10 +46,36 @@ async def withdrawal_request_handler(
         callback: CallbackQuery,
         state: FSMContext,
 ) -> None:
+    await state.set_state(WithdrawalRequestState.network)
+
+    buttons = {
+        f"USDT {network.value}": f"network_{network.value}"
+        for network in CryptoNetworkType.__members__.values()
+    }
+
+    await callback.message.delete()
+    await callback.message.answer(
+        "Выберите в какой сети вы хотите совершить вывод:",
+        reply_markup=get_donate_keyboard(
+            buttons=buttons,
+            sizes=(1,) * len(buttons),
+        ),
+    )
+
+@withdrawal_requests_router.callback_query(
+    F.data.startswith("network_"),
+    WithdrawalRequestState.network,
+)
+async def network_withdrawal_request_handler(
+        callback: CallbackQuery,
+        state: FSMContext,
+) -> None:
+    network = callback.data.split("_")[-1].upper()
+    await state.update_data(network=CryptoNetworkType[network])
     await state.set_state(WithdrawalRequestState.wallet_address)
     await callback.message.delete()
     await callback.message.answer(
-        "Для вывода отправьте адрес кошелька USDT в сети TON.\n\n"
+        f"Отправьте адрес кошелька USDT в сети {network}.\n\n"
         "<b>Важно:</b> <em>при указании неверного адреса средства будут утеряны</em>.",
         reply_markup=reply_cancel_keyboard,
     )
@@ -63,10 +91,11 @@ async def process_wallet_address(
         ],
 ) -> None:
     wallet_address = message.text
+    state_data = await state.get_data()
 
-    if len(wallet_address) != 48:
+    if not ValidateWalletAddress(wallet_address, network=state_data["network"])():
         await message.answer(
-            "❌ Некорректный ввод. Длина адреса должна быть 48 символов."
+            "❌ Некорректный ввод."
         )
         return
 
