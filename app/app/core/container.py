@@ -9,6 +9,7 @@ from app.repositories.admin_user import RepositoryAdminUser
 from app.repositories.matrix import RepositoryMatrix
 from app.repositories.transaction import RepositoryTransaction
 from app.repositories.withdrawal_request import RepositoryWithdrawalRequest
+from app.repositories.contest import RepositorySponsorsContest, RepositorySponsorsContestPoint
 
 from app.models.telegram_user import TelegramUser
 from app.models.admin_user import AdminUser
@@ -16,6 +17,7 @@ from app.models.donate import Donate, DonateTransaction
 from app.models.matrix import Matrix
 from app.models.transaction import Transaction
 from app.models.withdrawal_request import WithdrawalRequest
+from app.models.contest import SponsorsContest, SponsorsContestPoint
 
 from app.services.donate_confirm_service import DonateConfirmService
 from app.services.telegram_user_service import TelegramUserService
@@ -26,6 +28,7 @@ from app.services.withdrawal_request import WithdrawalRequestService
 from app.models.matrix import AddBotToMatrixTaskModel
 from app.repositories.matrix import RepositoryAddBotToMatrixTaskModel
 from app.services.matrix_service import AddBotToMatrixTaskModelService
+from app.app.services.sponsors_contest_service import SponsorsContestService
 
 
 class Container(containers.DeclarativeContainer):
@@ -87,6 +90,12 @@ class Container(containers.DeclarativeContainer):
     repository_add_bot_to_matrix_task = providers.Factory(
         RepositoryAddBotToMatrixTaskModel, model=AddBotToMatrixTaskModel, session=session
     )
+    repository_sponsors_contest = providers.Factory(
+        RepositorySponsorsContest, model=SponsorsContest, session=session
+    )
+    repository_sponsors_contest_point = providers.Factory(
+        RepositorySponsorsContestPoint, model=SponsorsContestPoint, session=session
+    )
     # endregion
 
     # region services
@@ -123,5 +132,11 @@ class Container(containers.DeclarativeContainer):
     add_bot_to_matrix_task_service = providers.Factory(
         AddBotToMatrixTaskModelService,
         repository_add_bot_to_matrix_task=repository_add_bot_to_matrix_task,
+    )
+    sponsors_contests_service = providers.Factory(
+        SponsorsContestService,
+        repository_sponsors_contest=repository_sponsors_contest,
+        repository_sponsors_contest_point=repository_sponsors_contest_point,
+        repository_telegram_user=repository_telegram_user,
     )
     # endregion

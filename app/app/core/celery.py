@@ -12,7 +12,7 @@ app.autodiscover_tasks(
         "app.tasks.donate",
         "app.tasks.matrix",
         "app.tasks.bot",
-
+        "app.tasks.contest",
     ]
 )
 

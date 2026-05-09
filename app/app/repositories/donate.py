@@ -8,8 +8,6 @@ from app.models.telegram_user import TelegramUser, DonateStatus,  MatrixBuildTyp
 from .base import RepositoryBase
 from app.models.donate import Donate, DonateTransaction, DonateTransactionType
 
-from ..models.telegram_user import TelegramUser
-
 
 class RepositoryDonate(RepositoryBase[Donate]):
     """Репозиторий доната"""
