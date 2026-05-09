@@ -4,3 +4,4 @@ from app.models.matrix import Matrix, AddBotToMatrixTaskModel
 from app.models.transaction import Transaction
 from app.models.donate import Donate, DonateTransaction
 from app.models.withdrawal_request import WithdrawalRequest
+from app.models.contest import SponsorsContest, SponsorsContestPoint
