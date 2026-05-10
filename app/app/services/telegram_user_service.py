@@ -48,7 +48,7 @@ class TelegramUserService:
             return user_exist
         if sponsor:
             user.sponsor_user_id = sponsor.user_id
-            sponsor.invites_count += 1
+            sponsor.invites_count += 1 if not user.is_bot else 0
         return self._repository_telegram_user.create(obj_in=user.model_dump())
 
     async def get_telegram_user_with_sponsors(

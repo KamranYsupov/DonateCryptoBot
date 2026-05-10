@@ -70,6 +70,7 @@ async def aggregate_invites_count_handler(
     for user in telegram_users:
         invites_count = await telegram_user_service.get_count(
             sponsor_user_id=user.user_id,
+            is_bot=False,
         )
         if invites_count != user.invites_count:
             updated_count += 1
