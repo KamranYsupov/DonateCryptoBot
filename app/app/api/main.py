@@ -6,11 +6,15 @@ from app.api.endpoints.routers import api_router
 from app.core.container import Container
 
 def create_app() -> FastAPI:
-    fastapi_app = FastAPI(
-        docs_url=None,
-        redoc_url=None,
-        openapi_url=None
-    )
+    app_kwargs = {}
+    if settings.debug:
+       app_kwargs.update(dict(
+           docs_url=None,
+           redoc_url=None,
+           openapi_url=None
+       ) )
+
+    fastapi_app = FastAPI(**app_kwargs)
     fastapi_app.container = Container()
     fastapi_app.include_router(api_router, prefix=settings.api_prefix)
 
@@ -20,4 +24,4 @@ def create_app() -> FastAPI:
 app = create_app()
 
 if __name__ == "__main__":
-    uvicorn.run(app="app.api.main:app", host="0.0.0.0", reload=True)
+    uvicorn.run(app="app.api.main:app", host="0.0.0.0", reload=settings.debug)
