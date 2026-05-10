@@ -50,6 +50,7 @@ from app.keyboards.donate import get_start_inline_keyboard
 from app.utils.datetime import to_main_tz
 from app.services.sponsors_contest_service import SponsorsContestService
 from app.utils.texts import places_emoji_data
+from app.models.telegram_user import DonateStatus
 
 donate_router = Router()
 
@@ -294,8 +295,7 @@ async def send_donations_menu(
         )
         return
 
-    current_user_matrices = await matrix_service.get_list(
-        order_by_create_at=True,
+    current_user_matrices = await matrix_service.get_user_matrices(
         owner_id=current_user.id,
     )
     current_user_main_matrices = get_main_matrices(current_user_matrices)
@@ -430,10 +430,9 @@ async def donate_handler(
     bill_type = callback.data.split("_")[-1]
     donate_sum = int(callback.data.split("_")[-2])
 
-    current_user_with_sponsors = await telegram_user_service.get_telegram_user_with_sponsors(
+    current_user, *sponsors = await telegram_user_service.get_telegram_user_with_sponsors(
         user_id=callback.from_user.id
     )
-    current_user, first_sponsor, second_sponsor, third_sponsor = current_user_with_sponsors
 
     need_to_buy_tokens = getattr(current_user, f"bill_for_{bill_type}") - donate_sum
     if need_to_buy_tokens < 0:
@@ -466,7 +465,7 @@ async def donate_handler(
     donations_data = []
 
     matrix = await donate_service.handle_matrix_activation(
-        (first_sponsor, second_sponsor, third_sponsor),
+        sponsors,
         current_user,
         donate_sum,
         donations_data,
@@ -482,12 +481,29 @@ async def donate_handler(
         matrix_id=matrix.id,
         quantity=donate_sum,
     )
+
     if status != DonateStatus.TEST:
-        matrix_owner = await telegram_user_service.get_telegram_user(
-            id=matrix.owner_id
-        )
+        contest_point_user_id = None
+        last_sponsor = sponsors[0]
+        for sponsor in sponsors:
+            if not sponsor:
+                break
+
+            last_sponsor = sponsor
+            if sponsor.status not in (DonateStatus.NOT_ACTIVE, DonateStatus.TEST):
+                contest_point_user_id = sponsor.user_id
+                break
+
+        if not contest_point_user_id:
+            contest_point_user = await telegram_user_service.get_sponsor_recursively(
+                TelegramUser.status != DonateStatus.NOT_ACTIVE,
+                TelegramUser.status != DonateStatus.TEST,
+                sponsor_user_id=last_sponsor.user_id
+            )
+            contest_point_user_id = contest_point_user.user_id
+
         await sponsors_contests_service.create_contest_point(
-            sponsor_user_id=matrix_owner.user_id
+            sponsor_user_id=contest_point_user_id
         )
 
     bill_field = f"bill_for_{bill_type}"

@@ -65,9 +65,9 @@ class TelegramUserService:
     async def delete(self, obj_id: uuid.UUID):
         self._repository_telegram_user.delete(obj_id=obj_id)
 
-    async def get_sponsors_for_separating_donate(self, user_id: int):
-        return self._repository_telegram_user.get_sponsors_for_separating_donate(
-            user_id=user_id
+    async def get_sponsor_recursively(self, *args, sponsor_user_id: int, **kwargs):
+        return self._repository_telegram_user.get_sponsor_recursively(
+            *args, sponsor_user_id=sponsor_user_id, **kwargs
         )
 
     async def get_invited_users(

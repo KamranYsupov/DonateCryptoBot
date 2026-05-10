@@ -98,13 +98,30 @@ class RepositoryTelegramUser(RepositoryBase[TelegramUser]):
 
         return sponsors
 
-    def get_sponsors_for_separating_donate(self, user_id: int):
-        sponsors = []
-        user = self.get(user_id=user_id)
-        while user.sponsor_user_id:
-            sponsor = self.get(user_id=user.sponsor_user_id)
-            sponsors.append(sponsor)
-        return sponsors
+    def get_sponsor_recursively(
+            self,
+            *args,
+            sponsor_user_id: int,
+            **kwargs
+    ) -> TelegramUser | None:
+        sponsor_by_user_id = self.get(user_id=sponsor_user_id)
+
+        if not sponsor_by_user_id:
+            return None
+
+        if not (args or kwargs):
+            return sponsor_by_user_id
+
+        sponsor_by_full_query = self.get(*args, user_id=sponsor_user_id, **kwargs)
+        if sponsor_by_full_query:
+            return sponsor_by_full_query
+
+        return self.get_sponsor_recursively(
+            *args,
+            sponsor_user_id=sponsor_by_user_id.sponsor_user_id,
+            **kwargs)
+
+
 
     def get_sponsors_chain(self, user_id):
         recursive_query = text(
