@@ -28,14 +28,10 @@ class SponsorsContest(Base, UUIDMixin):
 
     __tablename__ = "sponsors_contests"
 
-    start_date = Column(Date)
-    results = Column(
-        mutable_json_type(
-            dbtype=JSONB,
-            nested=True,
-        ),
-        default={}
-    )
+    start_date = Column(Date, unique=True, index=True)
+    top_10_rating = Column(MutableList.as_mutable(JSONB), default=[])
+    results = Column(MutableDict.as_mutable(JSONB), index=True, default={})
+    is_archived = Column(Boolean, default=False)
 
 
 class SponsorsContestPoint(Base, TimestampedMixin, UUIDMixin):
@@ -51,6 +47,12 @@ class SponsorsContestPoint(Base, TimestampedMixin, UUIDMixin):
         UUID(as_uuid=True),
         ForeignKey("sponsors_contests.id"),
         index=True,
+    )
+
+    contest = relationship(
+        "SponsorsContest",
+        remote_side="SponsorsContest.id",
+        backref="points"
     )
 
 

@@ -25,6 +25,7 @@ from app.models.withdrawal_request import WithdrawalRequest
 from app.core.container import Container
 from app.models.donate import DonateTransactionType
 from app.services.donate_service import DonateService
+from app.utils.datetime import to_main_tz
 
 
 def get_donate_confirm_message(
@@ -111,13 +112,14 @@ def get_matrices_length_statistic_message(
     return message
 
 def get_user_info_message(user: TelegramUser) -> str:
+    created_at_str = to_main_tz(user.created_at).strftime("%d.%m.%Y %H:%M")
     message = (
         f"ID: {html.bold(user.id)}\n\n"
         f"Telegram ID: {html.bold(user.user_id)}\n"
         f"Username: @{user.username}\n"
         f"Полное имя: {html.bold(user.full_name)}\n"
         f"Дата и время регистрации: "
-        + html.bold(user.created_at.strftime("%d.%m.%Y %H:%M"))
+        + html.bold(created_at_str)
     )
     return message
 
@@ -126,6 +128,9 @@ def get_withdrawal_request_info_message(
         withdrawal_request: WithdrawalRequest,
         withdrawal_request_user: TelegramUser,
 ) -> str:
+    created_at_str = \
+        to_main_tz(withdrawal_request.created_at).strftime("%d.%m.%Y %H:%M")
+
     message = (
         f"ID: {html.bold(withdrawal_request.id)}\n\n"
         f"Адрес кошелька: {html.code(withdrawal_request.wallet_address)}\n"
@@ -134,7 +139,7 @@ def get_withdrawal_request_info_message(
         f"Пользователь: @{html.bold(withdrawal_request_user.username)}\n"
         f"Подтвержден: " + html.bold("да" if withdrawal_request.is_paid else "нет") + "\n"
         f"Дата и время создания: "
-        + html.bold(withdrawal_request.created_at.strftime("%d.%m.%Y %H:%M"))
+        + html.bold(created_at_str)
     )
     return message
 
@@ -229,3 +234,23 @@ def get_matrix_info_message(
 
     return "\n".join(lines)
 
+
+def get_sponsors_contest_top_10_rating_message(top_10_rating: list[tuple[str, int]]) -> str:
+    if not top_10_rating:
+        return "В конкурсе пока нет результатов."
+
+    lines = ["<b>🏆 Топ-10 конкурса:</b>\n"]
+
+    for place, (full_name, points) in enumerate(top_10_rating, start=1):
+        if place <= 3:
+            place = places_emoji_data.get(place, place)
+
+        lines.append(f"{place}. <b>{full_name}</b> ({points})")
+
+    return "\n".join(lines)
+
+places_emoji_data = {
+    1: "🥇",
+    2: "🥈",
+    3:"🥉",
+}

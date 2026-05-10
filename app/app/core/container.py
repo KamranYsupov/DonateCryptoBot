@@ -28,7 +28,7 @@ from app.services.withdrawal_request import WithdrawalRequestService
 from app.models.matrix import AddBotToMatrixTaskModel
 from app.repositories.matrix import RepositoryAddBotToMatrixTaskModel
 from app.services.matrix_service import AddBotToMatrixTaskModelService
-from app.app.services.sponsors_contest_service import SponsorsContestService
+from app.services.sponsors_contest_service import SponsorsContestService
 
 
 class Container(containers.DeclarativeContainer):
@@ -47,11 +47,13 @@ class Container(containers.DeclarativeContainer):
             "app.handlers.worker",
             "app.handlers.bill_type",
             "app.handlers.aggregators",
+            "app.handlers.sponsors_contest",
 
             "app.middlewares.ban_user",
             "app.middlewares.subscriptions",
             "app.tasks.donate",
             "app.tasks.matrix",
+
             "app.utils.excel",
             "app.utils.texts",
         ]

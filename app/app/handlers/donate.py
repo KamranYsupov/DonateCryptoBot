@@ -47,6 +47,9 @@ from app.models.telegram_user import TelegramUser
 from app.models.matrix import Matrix
 from app.utils.matrix import get_main_matrices
 from app.keyboards.donate import get_start_inline_keyboard
+from app.utils.datetime import to_main_tz
+from app.services.sponsors_contest_service import SponsorsContestService
+from app.utils.texts import places_emoji_data
 
 donate_router = Router()
 
@@ -183,6 +186,9 @@ async def send_donations_menu(
         donate_confirm_service: DonateConfirmService = Provide[
             Container.donate_confirm_service
         ],
+        sponsors_contests_service: SponsorsContestService = Provide[
+            Container.sponsors_contests_service
+        ],
 ) -> None:
     telegram_method_kwargs = {}
     if telegram_method == bot.send_message:
@@ -191,8 +197,18 @@ async def send_donations_menu(
     current_user = await telegram_user_service.get_telegram_user(
         user_id=from_user_id
     )
+    current_sponsors_contest, _ = \
+        await sponsors_contests_service.get_or_create_current_contest()
+    current_user_contest_result = current_sponsors_contest.results.get(
+        str(current_user.user_id), {}
+    )
+    current_user_place = current_user_contest_result.get("place", "-")
+    if isinstance(current_user_place, int) and current_user_place <= 3:
+        current_user_place = places_emoji_data.get(current_user_place, current_user_place)
+
     default_buttons = {}
     message_text = (
+        f"Место в конкурсе: <b>{current_user_place}</b>\n"
         f"Лично приглашенных: <b>{current_user.invites_count}</b>\n"
         f"Баланс для активации: "
         f"<b>${current_user.bill_for_activation}</b>\n"
@@ -292,6 +308,7 @@ async def send_donations_menu(
         user_id=current_user.sponsor_user_id
     )
     buttons.update(get_donations_keyboard())
+
     message_text = (
         f"Активные площадки: {matrices_length_statistic_message}\n"
         f"Мой куратор: "
@@ -403,9 +420,11 @@ async def donate_handler(
             Container.telegram_user_service
         ],
         donate_service: DonateService = Provide[Container.donate_service],
-        matrix_service: MatrixService = Provide[Container.matrix_service],
         donate_confirm_service: DonateConfirmService = Provide[
             Container.donate_confirm_service
+        ],
+        sponsors_contests_service: SponsorsContestService = Provide[
+            Container.sponsors_contests_service
         ],
 ) -> None:
     bill_type = callback.data.split("_")[-1]
@@ -463,6 +482,13 @@ async def donate_handler(
         matrix_id=matrix.id,
         quantity=donate_sum,
     )
+    if status != DonateStatus.TEST:
+        matrix_owner = await telegram_user_service.get_telegram_user(
+            id=matrix.owner_id
+        )
+        await sponsors_contests_service.create_contest_point(
+            sponsor_user_id=matrix_owner.user_id
+        )
 
     bill_field = f"bill_for_{bill_type}"
     bill_value = getattr(current_user, bill_field)
@@ -583,7 +609,8 @@ async def get_transactions_list_to_me(
 
     if transactions:
         for transaction in transactions:
-            created_at_format = transaction.created_at.strftime("%d.%m.%Y %H:%M")
+            created_at_format = \
+                to_main_tz(transaction.created_at).strftime("%d.%m.%Y %H:%M")
             message += (
                 f"ID: {transaction.id}\n"
                 f"Сумма: ${transaction.quantity}\n"
@@ -653,7 +680,8 @@ async def get_transactions_list_from_me(
     donates = paginator.get_page()
     if donates:
         for donate, transactions in donates:
-            created_at_format = donate.created_at.strftime("%d.%m.%Y %H:%M")
+            created_at_format = \
+                to_main_tz(donate.created_at).strftime("%d.%m.%Y %H:%M")
             message += (
                 f"<b><u>Подарок на сумму: "
                 f"${donate.quantity}</u></b>\n"
@@ -717,7 +745,8 @@ async def get_all_transactions(
             user = await telegram_user_service.get_telegram_user(
                 id=donate.telegram_user_id
             )
-            created_at_format = donate.created_at.strftime("%d.%m.%Y %H:%M")
+            created_at_format = \
+                to_main_tz(donate.created_at).strftime("%d.%m.%Y %H:%M")
 
             message += (
                 f"<b><u>Подарок на сумму: "

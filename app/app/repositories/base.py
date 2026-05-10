@@ -33,7 +33,6 @@ class RepositoryBase(Generic[ModelType,]):
             select(self._model)
             .filter(*args)
             .filter_by(**kwargs)
-            .order_by(self._model.created_at)
         )
         return self._session.execute(statement).scalars().first()
 
@@ -60,8 +59,10 @@ class RepositoryBase(Generic[ModelType,]):
         try:
             statement = select(self._model).filter(*args).filter_by(**kwargs)
             self._session.execute(statement).one()
-            return True
+        except MultipleResultsFound:
+            pass
         except NoResultFound:
             return False
-        except MultipleResultsFound:
-            return False
+
+        return True
+

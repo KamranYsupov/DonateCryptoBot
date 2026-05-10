@@ -11,6 +11,7 @@ from .transfer import transfer_router
 from .worker import worker_router
 from .bill_type import bill_type_router
 from .aggregators import aggregators_router
+from .sponsors_contest import sponsors_contest_router
 
 def get_all_routers() -> Router:
     """Функция для регистрации всех router"""
@@ -27,5 +28,6 @@ def get_all_routers() -> Router:
     router.include_router(worker_router)
     router.include_router(bill_type_router)
     router.include_router(aggregators_router)
+    router.include_router(sponsors_contest_router)
 
     return router

@@ -36,6 +36,10 @@ async def about_handler(
     presentation_keyboard = InlineKeyboardBuilder()
     presentation_keyboard.add(
         InlineKeyboardButton(
+            text="🏆 КОНКУРС КУРАТОРОВ",
+            callback_data="current_sponsors_contest",
+        ),
+        InlineKeyboardButton(
             text="🎬 Фильм «KOD 💵 DENEG»",
             url="https://t.me/kod_deneg_film/15"
         ),

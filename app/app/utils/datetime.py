@@ -1,5 +1,17 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, UTC
 
-def get_start_of_week(day: date = date.today()) -> date:
-    start_of_week = day - timedelta(days=day.weekday())
-    return start_of_week
+from app.core.config import settings
+
+
+def to_main_tz(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+
+    return dt.astimezone(settings.timezone_info)
+
+
+def get_start_of_week(day: date | None = None) -> date:
+    day = day or to_main_tz(datetime.now()).date()
+    return day - timedelta(days=day.weekday())
+
+

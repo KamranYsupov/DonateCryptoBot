@@ -7,6 +7,7 @@ from app.core.container import Container
 from app.models.telegram_user import TelegramUser
 from app.services.telegram_user_service import TelegramUserService
 from openpyxl.utils import get_column_letter
+from app.utils.datetime import to_main_tz
 
 
 @inject
@@ -41,7 +42,7 @@ async def export_users_to_excel(
             "Всего заработано": user.donates_sum,
             "Tg ID": user.user_id,
             "Дата время регистрации": \
-                user.created_at.strftime("%d.%m.%Y %H:%M")
+                to_main_tz(user.created_at).strftime("%d.%m.%Y %H:%M")
         })
         count += 1
 

@@ -5,7 +5,7 @@ from sqlalchemy import select, delete, update, func
 from sqlalchemy.orm import selectinload
 
 from .base import RepositoryBase
-from app.app.models.contest import SponsorsContest, SponsorsContestPoint
+from app.models.contest import SponsorsContest, SponsorsContestPoint
 
 
 class RepositorySponsorsContest(RepositoryBase[SponsorsContest]):
@@ -16,17 +16,19 @@ class RepositorySponsorsContest(RepositoryBase[SponsorsContest]):
             select(SponsorsContest)
             .filter(*args)
             .filter_by(**kwargs)
-            .order_by(SponsorsContest.start_at)
+            .order_by(SponsorsContest.start_date)
         )
         return self._session.execute(statement).scalars().all()
 
-    def get_last(self):
+    def get_last(self, *args, **kwargs):
         statement = (
             select(SponsorsContest)
-            .order_by(SponsorsContest.start_at)
+            .filter(*args)
+            .filter_by(**kwargs)
+            .order_by(SponsorsContest.start_date)
         )
 
-        return self._session.execute(statement).scalars().last()
+        return self._session.execute(statement).scalars().first()
 
 
 class RepositorySponsorsContestPoint(RepositoryBase[SponsorsContestPoint]):

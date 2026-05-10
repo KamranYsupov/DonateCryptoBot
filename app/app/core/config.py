@@ -1,6 +1,7 @@
 import os
 import secrets
 from enum import Enum
+from zoneinfo import ZoneInfo
 
 from pydantic import PostgresDsn, Field, computed_field
 from pydantic_settings import BaseSettings
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
     message_per_second: float = Field(title="Кол-во сообщений в секунду", default=1)
     support_username: str = Field(title="Username аккаунта поддержки")
     log_level: LogLevel = Field(title="Уровень логирования", default=LogLevel.INFO)
+    timezone: str = Field(default="Europe/Moscow")
     # endregion
 
     # region API
@@ -54,6 +56,7 @@ class Settings(BaseSettings):
     postgres_host: str = Field(title="Хост БД")
     postgres_port: int = Field(title="Порт ДБ", default="5432")
     postgres_db: str = Field(title="Название БД")
+    database_url: PostgresDsn | None = Field(title="Ссылка БД", default=None)
     # endregion
 
     # region Настройки RabbitMQ
@@ -66,15 +69,13 @@ class Settings(BaseSettings):
     redis_port: int | str = Field(title="Порт redis", default=6379)
     # endregion
 
-    # region CryptoBot
+    # region Настройки CryptoBot
     crypto_bot_api_token: str = Field(title="CryptoBot API token")
     crypto_bot_api_base_url: str = Field(
         title="CryptoBot API base url",
         default="https://pay.crypt.bot/api/",
     )
     # endregion
-
-    database_url: PostgresDsn | None = Field(title="Ссылка БД", default=None)
 
     add_bot_to_matrix_1_countdown_minutes: int = 5
     add_bot_to_matrix_2_countdown_minutes: int = 15
@@ -94,6 +95,7 @@ class Settings(BaseSettings):
     matrix_max_length: int = 30
     matrix_max_level: int = 4
 
+    # region Настройки Telegram server
     telegram_server_host: str = Field(
         title="Telegram Local Server host",
         default="telegram-server",
@@ -101,6 +103,17 @@ class Settings(BaseSettings):
     telegram_server_port: int = Field(title="Telegram Local Server port", default=8081)
     telegram_app_api_id: int = Field(title="Telegram App API ID")
     telegram_app_api_hash: str = Field(title="Telegram App API Hash")
+    # endregion
+
+    # region Настройки Worker
+    add_bot_to_matrix_task_delay: int = Field(default=600)
+    update_contests_task_delay: int = Field(default=300)
+    # endregion
+
+    @computed_field
+    @property
+    def timezone_info(self) -> ZoneInfo:
+        return ZoneInfo(self.timezone)
 
     @computed_field
     @property

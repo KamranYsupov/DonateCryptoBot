@@ -124,7 +124,7 @@ async def add_bot_to_matrix(
 
 
 @inject
-async def execute_tasks(
+async def execute_bot_matrix_tasks(
     add_bot_to_matrix_task_service: AddBotToMatrixTaskModelService = Provide[
         Container.add_bot_to_matrix_task_service
     ]
