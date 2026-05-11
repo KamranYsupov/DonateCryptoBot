@@ -100,12 +100,16 @@ class SponsorsContestService:
                     (sponsor_result["full_name"], sponsor_result["points"])
                 )
 
+        update_kwargs = {}
+        if contest.top_10_rating != top_10_rating:
+            update_kwargs["top_10_rating"] = top_10_rating
+
+        if contest.results != results:
+            update_kwargs["results"] = results
+
         self._repository_sponsors_contest.update(
             obj_id=contest.id,
-            obj_in={
-                "top_10_rating": top_10_rating,
-                "results": results,
-            }
+            obj_in=update_kwargs
         )
 
 

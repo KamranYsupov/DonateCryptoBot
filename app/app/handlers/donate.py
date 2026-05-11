@@ -49,7 +49,7 @@ from app.utils.matrix import get_main_matrices
 from app.keyboards.donate import get_start_inline_keyboard
 from app.utils.datetime import to_main_tz
 from app.services.sponsors_contest_service import SponsorsContestService
-from app.utils.texts import places_emoji_data
+from app.utils.texts import places_emoji_list
 from app.models.telegram_user import DonateStatus
 
 donate_router = Router()
@@ -204,8 +204,8 @@ async def send_donations_menu(
         str(current_user.user_id), {}
     )
     current_user_place = current_user_contest_result.get("place", "-")
-    if isinstance(current_user_place, int) and current_user_place <= 3:
-        current_user_place = places_emoji_data.get(current_user_place, current_user_place)
+    if isinstance(current_user_place, int) and 0 < current_user_place <= 10:
+        current_user_place = places_emoji_list[current_user_place - 1]
 
     default_buttons = {}
     message_text = (

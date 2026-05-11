@@ -235,22 +235,39 @@ def get_matrix_info_message(
     return "\n".join(lines)
 
 
-def get_sponsors_contest_top_10_rating_message(top_10_rating: list[tuple[str, int]]) -> str:
+def get_sponsors_contest_top_10_rating_message(
+        top_10_rating: list[tuple[str, int]],
+        prize_fund: int = 100,
+) -> str:
     if not top_10_rating:
         return "В конкурсе пока нет результатов."
 
-    lines = ["<b>🏆 Топ-10 конкурса:</b>\n"]
+    lines = ["<b>🏆 Топ‑10 кураторов</b>\n"]
 
-    for place, (full_name, points) in enumerate(top_10_rating, start=1):
-        if place <= 3:
-            place = places_emoji_data.get(place, place)
+    for place, (full_name, points) in enumerate(top_10_rating):
+        try:
+            place_emoji = places_emoji_list[place]
+        except IndexError:
+            break
 
-        lines.append(f"{place}. <b>{full_name}</b> ({points})")
+        lines.append(f"{place_emoji} {full_name} — {points}")
+
+        if place == 2:
+            lines.append("")
+
+    lines.append(f"\n💰 Призовой фонд: <b>${prize_fund}</b>")
 
     return "\n".join(lines)
 
-places_emoji_data = {
-    1: "🥇",
-    2: "🥈",
-    3:"🥉",
-}
+places_emoji_list = (
+    "🥇",
+    "🥈",
+    "🥉",
+    "4⃣",
+    "5⃣",
+    "6⃣",
+    "7⃣",
+    "8⃣",
+    "9⃣",
+    "🔟",
+)
