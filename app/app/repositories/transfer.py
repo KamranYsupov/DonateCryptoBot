@@ -24,7 +24,7 @@ class RepositoryTransfer(RepositoryBase[Transfer]):
         if join_receiver:
             options.append(selectinload(Transfer.recipient))
 
-        statement = select(Transfer).options(*options).order_by(Transfer.created_at)
+        statement = select(Transfer).options(*options).order_by(Transfer.created_at.desc())
         result  = self._session.execute(statement)
 
         return result.scalars().all()

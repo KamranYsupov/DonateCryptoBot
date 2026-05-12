@@ -187,6 +187,7 @@ async def transfer_tokens_handler(
         from_id=sender.id,
         to_id=receiver.id,
     )
+    await transfer_service.create_transfer(transfer_schema)
 
     await callback.message.delete()
     await callback.message.answer(
@@ -239,6 +240,14 @@ async def transfer_list_handler(
         per_page=10
     )
     page = paginator.get_page()
+    if not page:
+        buttons.update(default_buttons)
+        sizes += (1, ) * len(buttons)
+        await callback.message.edit_text(
+            "Список пуст.",
+            reply_markup=get_donate_keyboard(buttons=buttons, sizes=sizes)
+        )
+        return 
     message_text = []
     for transfer in page:
         transfer_str = (
