@@ -18,13 +18,15 @@ from app.db.commit_decorator import commit_and_close_session
 from app.services.crypto_bot_api_service import CryptoBotAPIService
 from app.keyboards.reply import reply_cancel_keyboard, get_reply_keyboard
 from app.schemas.telegram_user import BillType
+from app.schemas.transfer import TransferCreateSchema
+from app.services.transfer_service import TransferService
 
 transfer_router = Router()
 
 class TransferState(StatesGroup):
     bill_type = State()
     receiver_username = State()
-    tokens_count = State()
+    amount = State()
     confirm = State()
 
 
@@ -79,15 +81,15 @@ async def process_receiver_username(
         return
 
     await state.update_data(receiver_username=username)
-    await state.set_state(TransferState.tokens_count)
+    await state.set_state(TransferState.amount)
     await message.answer(
         f"Напишите количество USDT для перевода."
     )
 
 
-@transfer_router.message(F.text, TransferState.tokens_count)
+@transfer_router.message(F.text, TransferState.amount)
 @inject
-async def process_tokens_count(
+async def process_amount(
         message: Message,
         state: FSMContext,
         telegram_user_service: TelegramUserService = Provide[
@@ -96,7 +98,7 @@ async def process_tokens_count(
 ) -> None:
 
     try:
-        tokens_count = int(message.text)
+        amount = int(message.text)
     except ValueError:
         await message.answer(
             "❌ Некорректный ввод. Отправьте положительное, целое число."
@@ -118,20 +120,20 @@ async def process_tokens_count(
             reply_markup=get_reply_keyboard(telegram_user),
         )
         return
-    if tokens_count > bill_value:
+    if amount > bill_value:
         await message.answer(
             "❌ Некорректный ввод. Число превышает сумму на балансе."
         )
         return
 
-    state_data = await state.update_data(tokens_count=tokens_count)
+    state_data = await state.update_data(amount=amount)
     receiver_username = state_data["receiver_username"]
 
     receiver_username = "@" + receiver_username \
         if receiver_username[0] != "@" else receiver_username
 
     await message.answer(
-        f"Перевод {tokens_count} USDT пользователю {receiver_username}.\n\n"
+        f"Перевод {amount} USDT пользователю {receiver_username}.\n\n"
         "Вы уверены?",
         reply_markup=get_donate_keyboard(
             buttons={
@@ -154,9 +156,12 @@ async def transfer_tokens_handler(
         telegram_user_service: TelegramUserService = Provide[
             Container.telegram_user_service
         ],
+        transfer_service: TransferService = Provide[
+            Container.transfer_service
+        ],
 ) -> None:
     state_data = await state.get_data()
-    tokens_count = state_data["tokens_count"]
+    amount = state_data["amount"]
     bill_type = state_data["bill_type"]
     bill_field = f"bill_for_{bill_type}"
 
@@ -166,15 +171,21 @@ async def transfer_tokens_handler(
     sender_bill_value = getattr(sender, bill_field)
     await state.clear()
 
-    if tokens_count > sender_bill_value:
+    if amount > sender_bill_value:
         await callback.message.edit_text(
             "❌ Число превышает сумму на балансе.",
             reply_markup=get_reply_keyboard(sender),
         )
         return
 
-    setattr(sender, bill_field, sender_bill_value - tokens_count)
-    receiver.bill_for_activation += tokens_count
+    setattr(sender, bill_field, sender_bill_value - amount)
+    receiver.bill_for_activation += amount
+    transfer_schema = TransferCreateSchema(
+        amount=amount,
+        from_id=sender.id,
+        to_id=receiver.id,
+    )
+    await transfer_service.create_transfer(transfer_schema)
 
     await callback.message.delete()
     await callback.message.answer(
@@ -185,7 +196,7 @@ async def transfer_tokens_handler(
     try:
         await callback.bot.send_message(
             chat_id=receiver.user_id,
-            text=f"Получен перевод {tokens_count} USDT от @{sender.username}."
+            text=f"Получен перевод {amount} USDT от @{sender.username}."
         )
     except TelegramAPIError:
         pass

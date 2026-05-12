@@ -10,6 +10,7 @@ from app.repositories.matrix import RepositoryMatrix
 from app.repositories.transaction import RepositoryTransaction
 from app.repositories.withdrawal_request import RepositoryWithdrawalRequest
 from app.repositories.contest import RepositorySponsorsContest, RepositorySponsorsContestPoint
+from app.repositories.transfer import RepositoryTransfer
 
 from app.models.telegram_user import TelegramUser
 from app.models.admin_user import AdminUser
@@ -18,6 +19,7 @@ from app.models.matrix import Matrix
 from app.models.transaction import Transaction
 from app.models.withdrawal_request import WithdrawalRequest
 from app.models.contest import SponsorsContest, SponsorsContestPoint
+from app.models.transfer import Transfer
 
 from app.services.donate_confirm_service import DonateConfirmService
 from app.services.telegram_user_service import TelegramUserService
@@ -29,6 +31,7 @@ from app.models.matrix import AddBotToMatrixTaskModel
 from app.repositories.matrix import RepositoryAddBotToMatrixTaskModel
 from app.services.matrix_service import AddBotToMatrixTaskModelService
 from app.services.sponsors_contest_service import SponsorsContestService
+from app.services.transfer_service import TransferService
 
 
 class Container(containers.DeclarativeContainer):
@@ -98,6 +101,9 @@ class Container(containers.DeclarativeContainer):
     repository_sponsors_contest_point = providers.Factory(
         RepositorySponsorsContestPoint, model=SponsorsContestPoint, session=session
     )
+    repository_transfer = providers.Factory(
+        RepositoryTransfer, model=Transfer, session=session
+    )
     # endregion
 
     # region services
@@ -139,6 +145,11 @@ class Container(containers.DeclarativeContainer):
         SponsorsContestService,
         repository_sponsors_contest=repository_sponsors_contest,
         repository_sponsors_contest_point=repository_sponsors_contest_point,
+        repository_telegram_user=repository_telegram_user,
+    )
+    transfer_service = providers.Factory(
+        TransferService,
+        repository_transfer=repository_transfer,
         repository_telegram_user=repository_telegram_user,
     )
     # endregion
