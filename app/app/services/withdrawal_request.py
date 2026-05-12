@@ -29,3 +29,6 @@ class WithdrawalRequestService:
         return self._repository_withdrawal_request.create(
             obj_in=withdrawal_requests_entity
         )
+
+    async def withdrawal_requests_exists(self, *args, **kwargs) -> WithdrawalRequest:
+        return self._repository_withdrawal_request.exists(*args, **kwargs)

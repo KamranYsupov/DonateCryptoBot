@@ -204,9 +204,23 @@ async def send_withdrawal_request_handler(
 
 
 @withdrawal_requests_router.callback_query(F.data.startswith("withdrawal_requests_"))
-@inject
 async def withdrawal_requests_handler(
         callback: CallbackQuery,
+) -> None:
+    return await get_withdrawal_requests_message(callback, archive=False)
+
+
+@withdrawal_requests_router.callback_query(F.data.startswith("archive_withdrawal_requests_"))
+async def archive_withdrawal_requests_handler(
+        callback: CallbackQuery,
+) -> None:
+    return await get_withdrawal_requests_message(callback, archive=True)
+
+
+@inject
+async def get_withdrawal_requests_message(
+        callback: CallbackQuery,
+        archive: bool = False,
         telegram_user_service: TelegramUserService = Provide[
             Container.telegram_user_service
         ],
@@ -214,19 +228,47 @@ async def withdrawal_requests_handler(
             Container.withdrawal_request_service
         ],
 ) -> None:
-    page_number = int(callback.data.split("_")[-1])
-    back_button = {"🔙 Назад": "donations"}
+    callback_data = callback.data.split("_")
+    base_callback_data = "_".join(callback_data[0:-1])
+    page_number = int(callback_data[-1])
 
-    withdrawal_requests = await withdrawal_request_service.get_withdrawal_requests(
-        order_by=[WithdrawalRequest.is_paid, WithdrawalRequest.created_at],
+    buttons = {}
+    order_by = []
+    default_buttons = {}
+
+    if archive:
+        is_paid = True
+        order_by.append(WithdrawalRequest.created_at.desc())
+        back_button_data = "_".join(callback.data.split("_")[1:-1])
+        sizes = tuple()
+    else:
+        is_paid = False
+        order_by.append(WithdrawalRequest.created_at)
+        back_button_data = "donations"
+        default_buttons["АРХИВ"] = f"archive_{callback.data}_1"
+        sizes = (1, )
+
+    default_buttons["🔙 Назад"] = back_button_data
+
+    withdrawal_requests_exists = await withdrawal_request_service.withdrawal_requests_exists(
+        is_paid=is_paid,
     )
-    if not withdrawal_requests:
+    if not withdrawal_requests_exists:
+        buttons.update(default_buttons)
+        sizes = (1,) * len(buttons)
         await callback.message.edit_text(
             "Список пуст.",
             reply_markup=get_donate_keyboard(
-                buttons=back_button
-        ))
+                buttons=buttons,
+                sizes=sizes
+            ),
+        )
         return
+
+    withdrawal_requests = await withdrawal_request_service.get_withdrawal_requests(
+        order_by=order_by,
+        is_paid=is_paid,
+    )
     paginator = Paginator(
         withdrawal_requests,
         page_number=page_number,
@@ -241,31 +283,32 @@ async def withdrawal_requests_handler(
         withdrawal_request_user
     )
 
-
-    buttons = {}
-
-    if paginator.has_previous():
-        buttons |= {"◀ Пред.": f"withdrawal_requests_{page_number - 1}"}
-    if paginator.has_next():
-        buttons |= {"След. ▶": f"withdrawal_requests_{page_number + 1}"}
-
-
-    buttons_len = len(buttons)
-    if buttons_len == 2:
-        sizes = (2, 1)
-    else:
-        sizes = (1, 1)
-
     if not withdrawal_request.is_paid:
-        buttons = {
-            "Подтвердить ☑️": f"pay_withdrawal_{withdrawal_request.id}_{page_number}"
-        } | buttons
+        buttons["Подтвердить ☑️"] = f"pay_withdrawal_{withdrawal_request.id}_{page_number}"
 
-        sizes = (1, ) + sizes
+    pagination_buttons = {}
+    if paginator.has_previous():
+        pagination_buttons["⏪"] = f"{base_callback_data}_1"
+        pagination_buttons["◀ Пред."] = (
+            f"{base_callback_data}_{page_number - 1}"
+        )
 
-    buttons.update(back_button)
+    if paginator.has_next():
+        pagination_buttons["След. ▶"] = (
+            f"{base_callback_data}_{page_number + 1}"
+        )
+        pagination_buttons["⏩"] = (
+            f"{base_callback_data}_{paginator.pages}"
+        )
 
+    buttons.update(pagination_buttons)
 
+    buttons.update(pagination_buttons)
+    if pagination_buttons:
+        sizes += (len(pagination_buttons),)
+
+    buttons.update(default_buttons)
+    sizes += (1, ) * len(default_buttons)
 
     await callback.message.edit_text(
         page_message_text,
@@ -286,13 +329,15 @@ async def pay_withdrawal_callback_handler(
             Container.withdrawal_request_service
         ],
 ) -> None:
-    withdrawal_request_id, page_number = callback.data.split('_')[-2:]
+    withdrawal_request_id = callback.data.split('_')[-2]
+    page_number = int(callback.data.split('_')[-1])
+    other_page_number = page_number - 1 if page_number > 1 else page_number
 
     await callback.message.edit_text(
         text="<b>Вы уверенны?</b>",
         reply_markup=get_donate_keyboard(
             buttons={
-                "Да": f"conf_withdrawal_{withdrawal_request_id}_{page_number}",
+                "Да": f"conf_withdrawal_{withdrawal_request_id}_{other_page_number}",
                 "Нет": f"withdrawal_requests_{page_number}",
             },
             sizes=(1, 1)
@@ -331,7 +376,7 @@ async def confirm_withdrawal_callback_handler(
 
     withdrawal_request.is_paid = True
     await callback.message.edit_text(
-        f"Запрос на вывод успешно подтвежден ✅.",
+        f"Запрос на вывод успешно подтвежден ✅",
         reply_markup=reply_markup,
     )
 
