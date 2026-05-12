@@ -23,3 +23,25 @@ class Paginator:
 
     def has_previous(self):
         return self.page_number > 1
+
+
+def get_pagination_buttons(
+        paginator: Paginator,
+        base_callback_data: str,
+):
+    buttons = {}
+    if paginator.has_previous():
+        buttons["⏪"] = f"{base_callback_data}_1"
+        buttons["◀ Пред."] = (
+            f"{base_callback_data}_{paginator.page_number - 1}"
+        )
+
+    if paginator.has_next():
+        buttons["След. ▶"] = (
+            f"{base_callback_data}_{paginator.page_number + 1}"
+        )
+        buttons["⏩"] = (
+            f"{base_callback_data}_{paginator.pages}"
+        )
+
+    return buttons

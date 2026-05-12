@@ -21,10 +21,14 @@ class TransferService:
     async def get_list(
             self,
             *args,
+            join_sender: bool = False,
+            join_receiver: bool = False,
             **kwargs
     ) -> list[Transfer]:
-        return self._repository_transfer.list(
+        return self._repository_transfer.get_list(
             *args,
+            join_sender,
+            join_receiver,
             **kwargs
         )
 

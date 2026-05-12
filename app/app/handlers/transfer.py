@@ -20,6 +20,8 @@ from app.keyboards.reply import reply_cancel_keyboard, get_reply_keyboard
 from app.schemas.telegram_user import BillType
 from app.schemas.transfer import TransferCreateSchema
 from app.services.transfer_service import TransferService
+from app.utils.pagination import Paginator, get_pagination_buttons
+from app.utils.datetime import to_main_tz
 
 transfer_router = Router()
 
@@ -185,7 +187,6 @@ async def transfer_tokens_handler(
         from_id=sender.id,
         to_id=receiver.id,
     )
-    await transfer_service.create_transfer(transfer_schema)
 
     await callback.message.delete()
     await callback.message.answer(
@@ -202,5 +203,69 @@ async def transfer_tokens_handler(
         pass
 
 
+@transfer_router.callback_query(F.data.startswith("transfer-list_"))
+@inject
+@commit_and_close_session
+async def transfer_list_handler(
+        callback: CallbackQuery,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
+        transfer_service: TransferService = Provide[
+            Container.transfer_service
+        ],
+):
+    current_user = await telegram_user_service.get_telegram_user(
+        user_id=callback.from_user.id
+    )
+    if not current_user.is_admin:
+        return
+
+    callback_data = callback.data.split("_")
+    base_callback_data = "_".join(callback_data[0:-1])
+    page_number = int(callback_data[-1])
+    default_buttons = {"🔙 Назад": "donations",}
+    buttons = {}
+    sizes = tuple()
+
+    transfer_list = await transfer_service.get_list(
+        join_sender=True,
+        join_receiver=True,
+    )
+
+    paginator = Paginator(
+        transfer_list,
+        page_number=page_number,
+        per_page=10
+    )
+    page = paginator.get_page()
+    message_text = []
+    for transfer in page:
+        transfer_str = (
+            f"ID: {transfer.id}\n"
+            f"Сумма: ${transfer.amount}\n"
+            f"От кого: @{transfer.sender.username} \n"
+            f"Кому: @{transfer.receiver.username} \n"
+            f"Дата и время: " +
+            to_main_tz(transfer.created_at).strftime("%d.%m.%Y %H:%M") + "\n"
+        )
+        message_text.append(transfer_str)
+
+    pagination_buttons = get_pagination_buttons(
+        paginator,
+        base_callback_data,
+    )
+
+    buttons.update(pagination_buttons)
+    if pagination_buttons:
+        sizes += (len(pagination_buttons),)
+
+    buttons.update(default_buttons)
+    sizes += (1,) * len(default_buttons)
+
+    await callback.message.edit_text(
+        "\n".join(message_text),
+        reply_markup=get_donate_keyboard(buttons=buttons, sizes=sizes),
+    )
 
 

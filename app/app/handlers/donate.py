@@ -223,8 +223,9 @@ async def send_donations_menu(
         default_buttons.update({
             "АКТИВНЫЕ ПЛОЩАДКИ": f"team_1",
             "Транзакции 💳": f"transactions",
-
         })
+
+    default_buttons.update({"Внутренний перевод 💸": "start_transfer",})
 
     if current_user.is_admin:
         users_count = await telegram_user_service.get_count(is_bot=False)
@@ -281,8 +282,8 @@ async def send_donations_menu(
             "Скачать базу ⬇️": "excel_users",
             "Заявки на вывод 💸": "withdrawal_requests_1",
             "Список забаненных пользователей 📇🅱️": "banned_users_1",
+            "Внутренние переводы": "transfer-list_1",
             "Забанить пользователя 🔒": "ban_user",
-            "Внутренний перевод": "start_transfer"
         }
         buttons.update(admin_buttons)
 
@@ -320,7 +321,6 @@ async def send_donations_menu(
     buttons.update({
         "Пополнить баланс": "start_buy_tokens_state",
         "Вывод средств": "withdrawal_request",
-        "Внутренний перевод": "start_transfer"
     })
 
     await telegram_method(

@@ -111,6 +111,19 @@ class TelegramUser(UUIDMixin, TimestampedMixin, AbstractTelegramUser, Base):
         remote_side="TelegramUser.user_id",
         backref="invited_users"
     )
+    sent_transfers = relationship(
+        "Transfer",
+        foreign_keys="[Transfer.from_id]",
+        back_populates="sender",
+        cascade="all, delete-orphan",
+    )
+    received_transfers = relationship(
+        "Transfer",
+        foreign_keys="[Transfer.to_id]",
+        back_populates="receiver",
+        cascade="all, delete-orphan",
+    )
+
 
     __table_args__ = (
         UniqueConstraint("user_id", name="unique_user_id"),

@@ -1,8 +1,8 @@
 from sqlalchemy import Column, UUID, ForeignKey, BigInteger
+from sqlalchemy.orm import relationship
 
 from .mixins import UUIDMixin, TimestampedMixin
 from app.db.base import Base
-from app.models.telegram_user import DonateStatus, MatrixBuildType
 
 
 class Transfer(UUIDMixin, TimestampedMixin, Base):
@@ -19,3 +19,16 @@ class Transfer(UUIDMixin, TimestampedMixin, Base):
         index=True,
     )
     amount = Column(BigInteger, index=True)
+
+    sender = relationship(
+        "TelegramUser",
+        foreign_keys=[from_id],
+        back_populates="sent_transfers",
+        lazy="joined",
+    )
+    receiver = relationship(
+        "TelegramUser",
+        foreign_keys=[to_id],
+        back_populates="received_transfers",
+        lazy="joined",
+    )

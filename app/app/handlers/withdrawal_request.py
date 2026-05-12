@@ -27,7 +27,7 @@ from app.keyboards.reply import get_reply_keyboard, reply_cancel_keyboard
 from app.services.withdrawal_request import WithdrawalRequestService
 from app.schemas.withdrawal_request import WithdrawalRequestEntity
 from app.models.withdrawal_request import WithdrawalRequest
-from app.utils.pagination import Paginator
+from app.utils.pagination import Paginator, get_pagination_buttons
 from app.utils.texts import get_withdrawal_request_info_message
 from app.validators.crypto_wallets import ValidateWalletAddress
 from app.models.withdrawal_request import CryptoNetworkType
@@ -286,21 +286,10 @@ async def get_withdrawal_requests_message(
     if not withdrawal_request.is_paid:
         buttons["Подтвердить ☑️"] = f"pay_withdrawal_{withdrawal_request.id}_{page_number}"
 
-    pagination_buttons = {}
-    if paginator.has_previous():
-        pagination_buttons["⏪"] = f"{base_callback_data}_1"
-        pagination_buttons["◀ Пред."] = (
-            f"{base_callback_data}_{page_number - 1}"
-        )
-
-    if paginator.has_next():
-        pagination_buttons["След. ▶"] = (
-            f"{base_callback_data}_{page_number + 1}"
-        )
-        pagination_buttons["⏩"] = (
-            f"{base_callback_data}_{paginator.pages}"
-        )
-
+    pagination_buttons = get_pagination_buttons(
+        paginator,
+        base_callback_data,
+    )
     buttons.update(pagination_buttons)
 
     buttons.update(pagination_buttons)
