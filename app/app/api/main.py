@@ -7,7 +7,7 @@ from app.core.container import Container
 
 def create_app() -> FastAPI:
     app_kwargs = {}
-    if settings.debug:
+    if not settings.debug:
        app_kwargs.update(dict(
            docs_url=None,
            redoc_url=None,
