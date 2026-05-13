@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     donates_channel_id: int = Field(title="ID канала с донатами")
     donates_channel_link: str = Field(title="Ссылка на канал с донатами")
     web_app_link: str = Field(title="Ссылка на web app")
+    manifest_link: str = Field(title="Ссылка на манифест")
     message_per_second: float = Field(title="Кол-во сообщений в секунду", default=1)
     support_username: str = Field(title="Username аккаунта поддержки")
     log_level: LogLevel = Field(title="Уровень логирования", default=LogLevel.INFO)

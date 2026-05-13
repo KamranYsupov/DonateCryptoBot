@@ -398,10 +398,14 @@ async def confirm_donate(
 
         return
 
+    manifest_str = f"<a href='{settings.manifest_link}'>манифестом</a>"
     await callback.message.edit_text(
-        text=f"Для активации площадки с вашего баланса будет списано {int(donate_sum)} USDT.\n\n"
-        "Продолжить?",
-        parse_mode="HTML",
+        text=(
+            f"Продолжая, вы соглашаетесь с {manifest_str}.\n\n"
+            f"Для активации площадки с вашего баланса будет списано {int(donate_sum)} USDT.\n\n"
+            "Продолжить?"
+        ),
+        disable_web_page_preview=True,
         reply_markup=get_donate_keyboard(
             buttons={
                 "Да": callback_donate_data,
