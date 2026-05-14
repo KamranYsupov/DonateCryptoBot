@@ -42,3 +42,11 @@ class RepositorySponsorsContest(RepositoryBase[SponsorsContest]):
 
 class RepositorySponsorsContestPoint(RepositoryBase[SponsorsContestPoint]):
     """Репозиторий балла конкурса кураторов"""
+
+    def get_count(self, *args, **kwargs) -> int:
+        statement = (
+            select(func.count(SponsorsContestPoint.id))
+            .filter(*args)
+            .filter_by(**kwargs)
+        )
+        return self._session.execute(statement).scalar()

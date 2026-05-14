@@ -250,7 +250,7 @@ def get_period_message(
 def get_sponsors_contest_top_10_rating_message(
         top_10_rating: list[tuple[str, int]],
         start_date: date,
-        prize_fund: int = 100,
+        prize_fund: int,
 ) -> str:
     lines = []
     if not top_10_rating:

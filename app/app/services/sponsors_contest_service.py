@@ -98,12 +98,21 @@ class SponsorsContestService:
         for place, (sponsor_user_id, sponsor_result) in enumerate(sorted_items, start=1):
             results[sponsor_user_id]["place"] = place
 
-            if place < 10:
+            if place <= 10:
                 top_10_rating.append(
                     (sponsor_result["full_name"], sponsor_result["points"])
                 )
 
         update_kwargs = {}
+
+        points_sum = self._repository_sponsors_contest_point.get_count(
+            contest_id=contest.id
+        )
+
+        updated_prize_fund = contest.init_prize_fund + (points_sum // 10) * 10
+        if contest.prize_fund != updated_prize_fund:
+            update_kwargs["prize_fund"] = updated_prize_fund
+
         if contest.top_10_rating != top_10_rating:
             update_kwargs["top_10_rating"] = top_10_rating
 

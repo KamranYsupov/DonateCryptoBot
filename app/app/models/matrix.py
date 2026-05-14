@@ -22,11 +22,11 @@ class Matrix(UUIDMixin, TimestampedMixin, Base):
         index=True,
     )
     status = Column(Enum(DonateStatus), default=DonateStatus.NOT_ACTIVE, index=True)
-    matrices = Column(mutable_json_type(dbtype=JSONB, nested=True), index=True, default={})
+    matrices = Column(mutable_json_type(dbtype=JSONB, nested=True), index=True, default=dict)
     matrix_telegram_usernames = Column(
-        mutable_json_type(dbtype=JSONB, nested=True), index=True, default={}
+        mutable_json_type(dbtype=JSONB, nested=True), index=True, default=dict
     )
-    telegram_users = Column(MutableList.as_mutable(JSONB), index=True, default=[])
+    telegram_users = Column(MutableList.as_mutable(JSONB), index=True, default=list)
 
     __table_args__ = {"extend_existing": True}
 

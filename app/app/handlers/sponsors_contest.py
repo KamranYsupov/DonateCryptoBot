@@ -58,14 +58,18 @@ async def current_contest_callback_handler(
         telegram_method = callback.message.edit_text
     except ValueError:
         contest = await sponsors_contests_service.get_current_contest()
-        buttons.update({"АРХИВ 🗄": "archive_sponsors_contests_1"})
+        archive_exists = await sponsors_contests_service.contest_exists(is_archived=True)
+        if archive_exists:
+            buttons.update({"АРХИВ 🗄": "archive_sponsors_contests_1"})
+
         telegram_method = callback.message.answer
         await callback.message.delete()
 
 
     message_text = get_sponsors_contest_top_10_rating_message(
-        contest.top_10_rating,
-        contest.start_date
+        top_10_rating=contest.top_10_rating,
+        start_date=contest.start_date,
+        prize_fund=contest.prize_fund,
     )
 
     await telegram_method(

@@ -12,6 +12,7 @@ from sqlalchemy import (
     UniqueConstraint,
     String,
     Date,
+    text,
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -29,8 +30,10 @@ class SponsorsContest(Base, UUIDMixin):
     __tablename__ = "sponsors_contests"
 
     start_date = Column(Date, unique=True, index=True)
-    top_10_rating = Column(MutableList.as_mutable(JSONB), default=[])
-    results = Column(MutableDict.as_mutable(JSONB), index=True, default={})
+    prize_fund = Column(Integer, default=100, server_default=text("100"))
+    init_prize_fund = Column(Integer, default=100, server_default=text("100"))
+    top_10_rating = Column(MutableList.as_mutable(JSONB), default=list)
+    results = Column(MutableDict.as_mutable(JSONB), index=True, default=dict)
     is_archived = Column(Boolean, default=False)
 
 

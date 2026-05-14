@@ -488,12 +488,12 @@ async def donate_handler(
 
     if status != DonateStatus.TEST:
         contest_point_user_id = None
-        last_sponsor = sponsors[0]
+        first_sponsor = sponsors[0]
         for sponsor in sponsors:
             if not sponsor:
                 break
 
-            last_sponsor = sponsor
+            first_sponsor = sponsor
             if sponsor.status not in (DonateStatus.NOT_ACTIVE, DonateStatus.TEST):
                 contest_point_user_id = sponsor.user_id
                 break
@@ -502,7 +502,7 @@ async def donate_handler(
             contest_point_user = await telegram_user_service.get_sponsor_recursively(
                 TelegramUser.status != DonateStatus.NOT_ACTIVE,
                 TelegramUser.status != DonateStatus.TEST,
-                sponsor_user_id=last_sponsor.user_id
+                sponsor_user_id=first_sponsor.user_id
             )
             contest_point_user_id = contest_point_user.user_id
 
