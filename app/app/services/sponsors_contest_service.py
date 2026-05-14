@@ -30,6 +30,9 @@ class SponsorsContestService:
     async def get_contests_list(self, *args, **kwargs):
         return self._repository_sponsors_contest.get_ordered_list(*args, **kwargs)
 
+    async def get_ids(self, *args, **kwargs):
+        return self._repository_sponsors_contest.get_ordered_ids(*args, **kwargs)
+
     async def get_last_contest(self, *args, **kwarg):
         return self._repository_sponsors_contest.get_last(*args, **kwarg)
 

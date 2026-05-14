@@ -11,6 +11,15 @@ from app.models.contest import SponsorsContest, SponsorsContestPoint
 class RepositorySponsorsContest(RepositoryBase[SponsorsContest]):
     """Репозиторий конкурса кураторов"""
 
+    def get_ordered_ids(self, *args, **kwargs):
+        statement = (
+            select(SponsorsContest.id)
+            .filter(*args)
+            .filter_by(**kwargs)
+            .order_by(SponsorsContest.start_date)
+        )
+        return self._session.execute(statement).scalars().all()
+
     def get_ordered_list(self, *args, **kwargs):
         statement = (
             select(SponsorsContest)

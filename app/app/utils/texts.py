@@ -1,4 +1,5 @@
 import copy
+from datetime import date, timedelta
 from typing import Any
 from collections import deque
 import uuid
@@ -235,14 +236,27 @@ def get_matrix_info_message(
     return "\n".join(lines)
 
 
+def get_period_message(
+        start_date: date,
+        period_days: int,
+) -> str:
+    end_date = start_date + timedelta(days=period_days - 1)
+    start_date_str = start_date.strftime("%d.%m.%Y")
+    end_date_str = end_date.strftime("%d.%m.%Y")
+
+    return f"{start_date_str} - {end_date_str}"
+
+
 def get_sponsors_contest_top_10_rating_message(
         top_10_rating: list[tuple[str, int]],
+        start_date: date,
         prize_fund: int = 100,
 ) -> str:
+    lines = []
     if not top_10_rating:
-        return "В конкурсе пока нет результатов."
-
-    lines = ["<b>🏆 Топ‑10 кураторов</b>\n"]
+        lines.append("В конкурсе пока нет результатов.")
+    else:
+        lines.append("<b>🏆 Топ‑10 кураторов</b>\n")
 
     for place, (full_name, points) in enumerate(top_10_rating):
         try:
@@ -255,7 +269,10 @@ def get_sponsors_contest_top_10_rating_message(
         if place == 2:
             lines.append("")
 
-    lines.append(f"\n💰 Призовой фонд: <b>${prize_fund}</b>")
+    period_str = get_period_message(start_date, period_days=7)
+
+    lines.append(f"\n🗓 Период: <b>{period_str}</b>")
+    lines.append(f"💰 Призовой фонд: <b>${prize_fund}</b>")
 
     return "\n".join(lines)
 
