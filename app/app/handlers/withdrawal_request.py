@@ -31,6 +31,7 @@ from app.utils.pagination import Paginator, get_pagination_buttons
 from app.utils.texts import get_withdrawal_request_info_message
 from app.validators.crypto_wallets import ValidateWalletAddress
 from app.models.withdrawal_request import CryptoNetworkType
+from app.utils.bot import send_message_or_pass
 
 withdrawal_requests_router = Router()
 
@@ -372,10 +373,8 @@ async def confirm_withdrawal_callback_handler(
     telegram_user = await telegram_user_service.get_telegram_user(
         id=withdrawal_request.telegram_user_id,
     )
-    try:
-        await callback.bot.send_message(
-            chat_id=telegram_user.user_id,
-            text=f"{withdrawal_request.tokens_count} USDT отправлены на указанный вами счет."
-        )
-    except TelegramAPIError:
-        pass
+    await send_message_or_pass(
+        bot=callback.bot,
+        chat_id=telegram_user.user_id,
+        text=f"{withdrawal_request.tokens_count} USDT отправлены на указанный вами счет."
+    )

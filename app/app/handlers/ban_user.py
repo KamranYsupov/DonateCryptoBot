@@ -15,6 +15,7 @@ from app.utils.pagination import Paginator
 from app.utils.texts import get_user_info_message
 from app.keyboards.reply import get_reply_keyboard
 from app.keyboards.reply import reply_cancel_keyboard
+from app.utils.bot import send_message_or_pass
 
 ban_user_router = Router()
 
@@ -112,16 +113,14 @@ async def confirm_ban_user_callback_handler(
         f"Пользователь @{telegram_user.username} успешно заблокирован ✅.",
     )
 
-    try:
-        await callback.bot.send_message(
-            chat_id=telegram_user.user_id,
-            text=(
-                "Ваш аккаунт заблокирован. Для уточнения причины блокировки, "
-                f"свяжитесь со службой поддержки. @{settings.support_username}"
-            )
+    await send_message_or_pass(
+        callback.bot,
+        chat_id=telegram_user.user_id,
+        text=(
+            "Ваш аккаунт заблокирован. Для уточнения причины блокировки, "
+            f"свяжитесь со службой поддержки. @{settings.support_username}"
         )
-    except TelegramAPIError:
-        pass
+    )
 
 
 @ban_user_router.callback_query(F.data.startswith("banned_users_"))
@@ -225,10 +224,8 @@ async def confirm_ban_user_callback_handler(
         f"Пользователь @{telegram_user.username} успешно разблокирован ✅."
     )
 
-    try:
-        await callback.bot.send_message(
-            chat_id=telegram_user.user_id,
-            text="Ваш аккаунт разблокирован!"
-        )
-    except TelegramAPIError:
-        pass
+    await send_message_or_pass(
+        bot=callback.bot,
+        chat_id=telegram_user.user_id,
+        text="Ваш аккаунт разблокирован!"
+    )

@@ -9,6 +9,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, CommandObject, Command
 from dependency_injector.wiring import inject, Provide
+from sqlalchemy import text
 from sqlalchemy.sql import func
 
 from app.core.container import Container
@@ -27,6 +28,7 @@ from app.keyboards.reply import get_reply_keyboard
 from app.utils.matrix import get_matrices_length
 from app.services.donate_confirm_service import DonateConfirmService
 from app.keyboards.donate import get_start_inline_keyboard
+from app.utils.bot import get_schema_from_user
 
 start_router = Router()
 
@@ -89,8 +91,6 @@ async def delete_msg_handler(
     await callback.message.delete()
 
 
-
-
 @start_router.message(F.text.lower() == "отмена ❌")
 @inject
 async def cancel_handler(
@@ -136,16 +136,13 @@ async def admin(
     if admin_user:
         return
 
-    user_dict = message.from_user.model_dump()
-    user_id = user_dict.pop("id")
-
-    user_dict["user_id"] = user_id
-    user_dict["is_admin"] = True
-    user_dict["status"] = DonateStatus.get_status_list()[-1]
-    user_dict["depth_level"] = 0
-    user = TelegramUserEntity(**user_dict)
-
-    admin_user = await telegram_user_service.create_telegram_user(user=user)
+    user_schema = get_schema_from_user(
+        message.from_user,
+        status=DonateStatus.get_status_list()[-1],
+        depth_level=0,
+        is_admin=True,
+    )
+    admin_user = await telegram_user_service.create_telegram_user(user=user_schema)
 
     for status in status_list:
         matrix_dict = {"owner_id": admin_user.id, "status": status}
@@ -162,6 +159,7 @@ async def admin(
         reply_markup=get_reply_keyboard(admin_user),
     )
 
+# Тут функции только для тестов поэтому нет DRY
 #
 # @start_router.message(F.text.startswith("fake_"))
 # @inject
@@ -196,10 +194,11 @@ async def admin(
 #         user=user,
 #         sponsor=current_user
 #     )
-#     donations_data = {current_user: donate_sum * settings.first_sponsor_donate_percent / 100}
+#     donations_data = []
 #
-#     matrix = await donate_service.handle_matrix_activation(
-#         current_user,
+#     for _ in range(30):
+#         matrix = await donate_service.handle_matrix_activation(
+#         (current_user, None, None),
 #         fake_user,
 #         donate_sum,
 #         donations_data,
@@ -219,7 +218,6 @@ async def admin(
 #         f"{settings.bot_link}?start={fake_user.user_id}",
 #         parse_mode="HTML",
 #     )
-#
 #
 # # Тут функции только для тестов поэтому нет DRY
 # @start_router.message(Command("create_admin"))

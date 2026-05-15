@@ -1,3 +1,4 @@
+import math
 import os
 from datetime import datetime, timedelta
 import uuid
@@ -6,11 +7,12 @@ import loguru
 from aiogram import Router, F, Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramAPIError
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-
 from dependency_injector.wiring import inject, Provide
 
 from app.core.container import Container
@@ -51,18 +53,93 @@ from app.utils.datetime import to_main_tz
 from app.services.sponsors_contest_service import SponsorsContestService
 from app.utils.texts import places_emoji_list
 from app.models.telegram_user import DonateStatus
+from app.utils.captcha import generate_math_captcha
+from app.utils.bot import send_message_or_pass, delete_message_or_pass
+from app.utils.bot import get_schema_from_user
 
 donate_router = Router()
 
+
+class CaptchaState(StatesGroup):
+    option = State()
+
+
+async def send_captcha(
+    callback: CallbackQuery,
+    state: FSMContext,
+    sponsor_user_id: int,
+    attempt: int = 1,
+    exception_text: str = "",
+) -> None:
+    text, answer, options = generate_math_captcha(
+        options_count=settings.math_captcha_options_count
+    )
+
+    captcha_id = str(uuid.uuid4())
+    buttons = {
+        str(option): f"register_{captcha_id}_{option}_{attempt}_{sponsor_user_id}"
+        for option in options
+    }
+
+    sizes = (min(len(options), 3),) * math.ceil(len(options) / 3)
+
+    await delete_message_or_pass(callback.message)
+
+    message_text = f"<b>{text}</b>"
+
+    if exception_text:
+        message_text = f"{exception_text}\n\n{message_text}"
+
+    await callback.message.answer(
+        message_text,
+        reply_markup=get_donate_keyboard(
+            buttons=buttons,
+            sizes=sizes,
+        ),
+    )
+    await state.update_data(
+        captcha_id=captcha_id,
+        answer=answer,
+        created_at=datetime.now().timestamp(),
+    )
+
+
+async def send_subscription_menu(
+    callback: CallbackQuery,
+    sponsor_user_id: int,
+) -> None:
+    buttons = [
+        InlineKeyboardButton(
+            text="📌 КАНАЛ 📌",
+            url=settings.channel_link,
+        ),
+        InlineKeyboardButton(
+            text="💬 ЧАТ 💬",
+            url=settings.chat_link,
+        ),
+        InlineKeyboardButton(
+            text="Проверить подписку ✅",
+            callback_data=f"menu_{sponsor_user_id}",
+        ),
+    ]
+
+    keyboard = InlineKeyboardBuilder()
+    keyboard.add(*buttons)
+
+    await callback.message.answer(
+        "🔑 Для доступа к основным функциям бота, "
+        "подпишитесь на чат и канал сообщества ⤵️",
+        reply_markup=keyboard.adjust(1, 1).as_markup(),
+    )
+
+
 @donate_router.callback_query(F.data.startswith("yes_"))
 @inject
-async def subscribe_handler(
+async def captcha_handler(
         callback: CallbackQuery,
-        telegram_user_service: TelegramUserService = Provide[
-            Container.telegram_user_service
-        ],
+        state: FSMContext,
 ) -> None:
-    await callback.message.delete()
+    await state.clear()
     if not callback.from_user.username:
         await callback.message.answer(
             "Для регистрации добавьте пожалуйста <em>username</em> в свой telegram аккаунт",
@@ -72,51 +149,111 @@ async def subscribe_handler(
         )
         return
 
-    sponsor_user_id = get_callback_value(callback.data)
-    sponsor = await telegram_user_service.get_telegram_user(user_id=sponsor_user_id)
+    sponsor_user_id = int(callback.data.split("_")[-1])
+    await send_captcha(
+        callback=callback,
+        state=state,
+        sponsor_user_id=sponsor_user_id,
+    )
+    await state.set_state(CaptchaState.option)
+
+
+@donate_router.callback_query(F.data.startswith("register_"), CaptchaState.option)
+@inject
+@commit_and_close_session
+async def register_handler(
+        callback: CallbackQuery,
+        state: FSMContext,
+        telegram_user_service: TelegramUserService = Provide[
+            Container.telegram_user_service
+        ],
+) -> None:
     current_user = await telegram_user_service.get_telegram_user(
         user_id=callback.from_user.id
     )
-    if not current_user:
-        user_dict = callback.from_user.model_dump()
-        user_id = user_dict.pop("id")
+    captcha_id = callback.data.split("_")[-4]
+    option, attempt, sponsor_user_id = map(int, callback.data.split("_")[-3:])
 
-        user_dict["user_id"] = user_id
-        user_dict["sponsor_user_id"] = sponsor_user_id
-        user_dict["depth_level"] = sponsor.depth_level + 1
-        user = TelegramUserEntity(**user_dict)
+    if current_user:
+        await state.clear()
+        await send_subscription_menu(callback, sponsor_user_id)
+        return
 
-        current_user = await telegram_user_service.create_telegram_user(
-            user=user,
+    now = datetime.now()
+    state_data = await state.get_data()
+
+    if captcha_id != state_data.get("captcha_id"):
+        await callback.message.edit_text("Проверка устарела.")
+        return
+
+    captcha_created_at = datetime.fromtimestamp(
+        state_data["created_at"]
+    )
+
+    captcha_expired = (
+        captcha_created_at + timedelta(seconds=settings.captcha_seconds_interval)
+    ) < now
+
+    if captcha_expired:
+        await send_captcha(
+            callback=callback,
+            state=state,
+            sponsor_user_id=sponsor_user_id,
+            attempt=attempt,
+            exception_text=(
+                "❌⌛️ Время на решение вышло. "
+                "Попробуйте еще раз."
+            ),
+        )
+        return
+
+    answer = int(state_data["answer"])
+
+    sponsor = await telegram_user_service.get_telegram_user(
+        user_id=sponsor_user_id
+    )
+    user_schema = get_schema_from_user(
+        callback.from_user,
+        depth_level=sponsor.depth_level + 1,
+        sponsor_user_id=sponsor_user_id,
+    )
+
+    if option != answer and attempt >= settings.math_captcha_max_attempts_count:
+        user_schema.is_banned = True
+        await telegram_user_service.create_telegram_user(
+            user=user_schema,
             sponsor=sponsor,
         )
-
-        try:
-            await callback.bot.send_message(
-                chat_id=sponsor.user_id,
-                text=f"По вашей ссылке зарегистрировался пользователь @{current_user.username}."
-            )
-        except TelegramAPIError:
-            pass
-
-    buttons = [
-        InlineKeyboardButton(
-            text="📌 КАНАЛ 📌",
-            url=settings.channel_link),
-        InlineKeyboardButton(
-            text="💬 ЧАТ 💬",
-            url=settings.chat_link),
-        InlineKeyboardButton(
-            text="Проверить подписку ✅",
-            callback_data=f"menu_{sponsor_user_id}",
+        await delete_message_or_pass(callback.message)
+        await callback.message.answer(
+            "❌ Проверка не пройдена. \n\nВаш аккаунт заблокирован. "
+            "Для снятия блокировки, свяжитесь со службой поддержки. "
+            f"@{settings.support_username}"
         )
-    ]
-    keyboard = InlineKeyboardBuilder()
-    keyboard.add(*buttons)
+        await state.clear()
+        return
+    elif option != answer:
+        await send_captcha(
+            callback=callback,
+            state=state,
+            sponsor_user_id=sponsor_user_id,
+            attempt=attempt + 1,
+            exception_text="❌ Неверный вариант ответа.",
+        )
+        return
 
-    await callback.message.answer(
-        f"🔑 Для доступа к основным функциям бота, подпишитесь на чат и канал сообщества ⤵️",
-        reply_markup=keyboard.adjust(1, 1).as_markup()
+    await delete_message_or_pass(callback.message)
+    await state.clear()
+
+    current_user = await telegram_user_service.create_telegram_user(
+        user=user_schema,
+        sponsor=sponsor,
+    )
+    await send_subscription_menu(callback, sponsor_user_id)
+    await send_message_or_pass(
+        bot=callback.bot,
+        chat_id=sponsor.user_id,
+        text=f"По вашей ссылке зарегистрировался пользователь @{current_user.username}."
     )
 
 

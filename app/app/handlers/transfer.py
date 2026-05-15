@@ -22,6 +22,7 @@ from app.schemas.transfer import TransferCreateSchema
 from app.services.transfer_service import TransferService
 from app.utils.pagination import Paginator, get_pagination_buttons
 from app.utils.datetime import to_main_tz
+from app.utils.bot import send_message_or_pass
 
 transfer_router = Router()
 
@@ -195,13 +196,12 @@ async def transfer_tokens_handler(
         reply_markup=get_reply_keyboard(sender),
     )
 
-    try:
-        await callback.bot.send_message(
-            chat_id=receiver.user_id,
-            text=f"Получен перевод {amount} USDT от @{sender.username}."
-        )
-    except TelegramAPIError:
-        pass
+    await send_message_or_pass(
+        bot=callback.bot,
+        chat_id=receiver.user_id,
+        text=f"Получен перевод {amount} USDT от @{sender.username}."
+    )
+
 
 
 @transfer_router.callback_query(F.data.startswith("transfer-list_"))

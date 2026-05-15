@@ -47,8 +47,8 @@ async def updates_webhook(
         for message_id in invoice.payload.messages_to_delete_ids:
             try:
                 await bot.delete_message(
-                chat_id=telegram_id,
-                message_id=message_id,
+                    chat_id=telegram_id,
+                    message_id=message_id,
             )
             except TelegramAPIError:
                 pass

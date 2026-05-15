@@ -111,6 +111,12 @@ class Settings(BaseSettings):
     update_contests_task_delay: int = Field(default=300)
     # endregion
 
+    # region Настройки Captcha
+    captcha_seconds_interval: int = Field(title="Время на решение каптчи", default=60)
+    math_captcha_options_count: int = Field(default=6)
+    math_captcha_max_attempts_count: int = Field(default=2)
+    # endregion
+
     @computed_field
     @property
     def timezone_info(self) -> ZoneInfo:

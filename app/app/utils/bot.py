@@ -1,17 +1,18 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from aiogram import Bot
-from aiogram.exceptions import TelegramAPIError
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from aiogram.types import (
     Message,
     InlineKeyboardMarkup,
-    InlineKeyboardButton
+    InlineKeyboardButton, User
 )
 
 from app.loader import bot
 from app.core.config import settings
 from app.models.donate import DonateTransactionType
 from app.models.telegram_user import DonateStatus, status_emoji_list, statuses_colors_data
+from app.schemas.telegram_user import TelegramUserEntity
 
 
 async def echo_message_with_media(
@@ -253,7 +254,13 @@ def serialize_reply_markup(reply_markup) -> Dict[str, Any]:
 async def send_message_or_pass(bot: Bot, *args, **kwargs):
     try:
         await bot.send_message(*args, **kwargs)
-    except TelegramAPIError:
+    except TelegramBadRequest:
+        pass
+
+async def delete_message_or_pass(message: Message) -> None:
+    try:
+        await message.delete()
+    except TelegramBadRequest:
         pass
 
 async def send_transaction_messages(
@@ -318,3 +325,17 @@ async def send_transaction_messages(
             chat_id=settings.donates_channel_id,
         )
         return
+
+
+def get_schema_from_user(
+        from_user: User,
+        depth_level: Optional[int] = None,
+        **kwargs
+) -> TelegramUserEntity:
+    user_dict = from_user.model_dump()
+
+    user_id = user_dict.pop("id")
+    user_dict["user_id"] = user_id
+    user_dict["depth_level"] = depth_level
+
+    return TelegramUserEntity(**user_dict, **kwargs)
